@@ -1,0 +1,25 @@
+# pgquant build artifacts
+/target/
+
+# Rust toolchain (local workspace install)
+/.rustup/
+/.cargo/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pgrx managed PostgreSQL data
+/.pgrx/
+
+# Project Management & Data Files
+PROGRESS.md
+pgquant_PROJECT_PLAN.md
+DECISIONS.md
+Course Data/

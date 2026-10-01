@@ -1,0 +1,39 @@
+[package]
+name = "pgquant"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "pgQuant - the quant toolkit Postgres never had"
+repository = "https://github.com/pranshu05/pgquant"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["pg14"]
+pg14 = ["pgrx/pg14", "pgrx-tests/pg14"]
+pg15 = ["pgrx/pg15", "pgrx-tests/pg15"]
+pg16 = ["pgrx/pg16", "pgrx-tests/pg16"]
+pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]
+pg_test = []
+
+[dependencies]
+pgrx = "=0.12.9"
+
+# Pinned for later phases — do not add until needed:
+# nalgebra = "=0.33.2"     # Phase 4+: matrix ops for covariance/optimization
+statrs = "=0.18.0"       # Phase 2+: Normal/Student-t distributions for VaR
+# argmin = "=0.10.0"       # Phase 3+: MLE fitting for GARCH/EWMA
+
+
+[dev-dependencies]
+pgrx-tests = "=0.12.9"
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+lto = "fat"
+codegen-units = 1

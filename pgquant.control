@@ -1,0 +1,6 @@
+# pgquant extension
+comment = 'pgQuant - the quant toolkit Postgres never had'
+default_version = '@CARGO_VERSION@'
+module_pathname = '$libdir/pgquant'
+relocatable = false
+superuser = false
