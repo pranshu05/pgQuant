@@ -17,9 +17,9 @@ The inspiration for starting this project was the course I have taken currently,
 - **[Risk Metrics (docs/risk.md)](docs/risk.md):**
   - Historical Value at Risk (VaR) & Expected Shortfall (ES)
   - Gaussian (parametric) VaR & ES
+  - Student-t (parametric) VaR & ES
 
 **Planned Features (WIP):**
-- **Student-t VaR & ES**
 - **Volatility Models:** Rolling volatility, EWMA, and GARCH(1,1) estimation via MLE.
 - **Covariance:** Sample and Shrinkage covariance (Ledoit-Wolf style).
 - **Factor Construction:** SMB, HML, and WML (momentum) construction.

@@ -50,54 +50,6 @@ pub fn pgquant_log_returns(
     pgrx::iter::TableIterator::new(results)
 }
 
-#[cfg(any(test, feature = "pg_test"))]
-#[pg_schema]
-mod tests {
-    use super::*;
-    use pgrx::prelude::*;
-
-    #[pg_test]
-    fn test_pgquant_log_return() {
-        let ret = pgquant_log_return(105.0, 100.0);
-        assert!((ret - 0.048790164169).abs() < 1e-6);
-    }
-
-    #[pg_test]
-    fn test_pgquant_log_returns() {
-        // Create a temporary table for testing
-        Spi::run("CREATE TEMP TABLE test_prices_returns (symbol text, date date, price double precision);").unwrap();
-        Spi::run(
-            "INSERT INTO test_prices_returns VALUES 
-            ('AAPL', '2026-10-01', 150.0), 
-            ('AAPL', '2026-10-02', 155.0),
-            ('AAPL', '2026-10-03', 153.0),
-            ('MSFT', '2026-10-01', 300.0),
-            ('MSFT', '2026-10-02', 295.0);
-        ",
-        )
-        .unwrap();
-
-        let query = "SELECT symbol, date, price FROM test_prices_returns ORDER BY symbol, date;";
-        let results_iter = pgquant_log_returns(query);
-        let results: Vec<_> = results_iter.collect();
-
-        // AAPL should have 2 returns, MSFT should have 1 return
-        assert_eq!(results.len(), 3);
-
-        // AAPL 2026-10-02 return: ln(155/150)
-        assert_eq!(results[0].0, "AAPL");
-        assert!((results[0].2 - (155.0_f64 / 150.0_f64).ln()).abs() < 1e-6);
-
-        // AAPL 2026-10-03 return: ln(153/155)
-        assert_eq!(results[1].0, "AAPL");
-        assert!((results[1].2 - (153.0_f64 / 155.0_f64).ln()).abs() < 1e-6);
-
-        // MSFT 2026-10-02 return: ln(295/300)
-        assert_eq!(results[2].0, "MSFT");
-        assert!((results[2].2 - (295.0_f64 / 300.0_f64).ln()).abs() < 1e-6);
-    }
-}
-
 /// Computes the simple return of a single period given p_t and p_t_minus_1.
 #[pg_extern]
 pub fn pgquant_simple_return(p_t: f64, p_t_minus_1: f64) -> f64 {
@@ -173,9 +125,50 @@ pub fn pgquant_cumulative_log_return(returns: Vec<f64>) -> f64 {
 
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
-mod tests_utils {
+mod tests {
     use super::*;
     use pgrx::prelude::*;
+
+    #[pg_test]
+    fn test_pgquant_log_return() {
+        let ret = pgquant_log_return(105.0, 100.0);
+        assert!((ret - 0.048790164169).abs() < 1e-6);
+    }
+
+    #[pg_test]
+    fn test_pgquant_log_returns() {
+        // Create a temporary table for testing
+        Spi::run("CREATE TEMP TABLE test_prices_returns (symbol text, date date, price double precision);").unwrap();
+        Spi::run(
+            "INSERT INTO test_prices_returns VALUES 
+            ('AAPL', '2026-10-01', 150.0), 
+            ('AAPL', '2026-10-02', 155.0),
+            ('AAPL', '2026-10-03', 153.0),
+            ('MSFT', '2026-10-01', 300.0),
+            ('MSFT', '2026-10-02', 295.0);
+        ",
+        )
+        .unwrap();
+
+        let query = "SELECT symbol, date, price FROM test_prices_returns ORDER BY symbol, date;";
+        let results_iter = pgquant_log_returns(query);
+        let results: Vec<_> = results_iter.collect();
+
+        // AAPL should have 2 returns, MSFT should have 1 return
+        assert_eq!(results.len(), 3);
+
+        // AAPL 2026-10-02 return: ln(155/150)
+        assert_eq!(results[0].0, "AAPL");
+        assert!((results[0].2 - (155.0_f64 / 150.0_f64).ln()).abs() < 1e-6);
+
+        // AAPL 2026-10-03 return: ln(153/155)
+        assert_eq!(results[1].0, "AAPL");
+        assert!((results[1].2 - (153.0_f64 / 155.0_f64).ln()).abs() < 1e-6);
+
+        // MSFT 2026-10-02 return: ln(295/300)
+        assert_eq!(results[2].0, "MSFT");
+        assert!((results[2].2 - (295.0_f64 / 300.0_f64).ln()).abs() < 1e-6);
+    }
 
     #[pg_test]
     fn test_annualize_simple() {

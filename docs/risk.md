@@ -45,3 +45,25 @@ Computes the Gaussian Value at Risk using the inverse cumulative distribution fu
 ### `pgquant_es_gaussian(mu DOUBLE PRECISION, sigma DOUBLE PRECISION, alpha DOUBLE PRECISION)`
 Computes the Gaussian Expected Shortfall.
 - **Returns:** `DOUBLE PRECISION`
+
+## Parametric (Student-t) Method
+
+The Student-t method is similar to the Gaussian method but assumes returns follow a Student-t distribution. This is often more realistic for financial returns because it accounts for "fat tails" (extreme events occurring more frequently than a normal distribution predicts). You must provide the degrees of freedom (`dof` or `nu`), which controls the fatness of the tails (lower `dof` = fatter tails).
+
+### `pgquant_var_t(mu DOUBLE PRECISION, sigma DOUBLE PRECISION, dof DOUBLE PRECISION, alpha DOUBLE PRECISION)`
+Computes the Student-t Value at Risk using the inverse cumulative distribution function.
+- **Arguments:**
+  - `mu`: The mean (location) of the return series.
+  - `sigma`: The scale parameter of the return series (often estimated via standard deviation).
+  - `dof`: Degrees of freedom.
+  - `alpha`: Confidence level (e.g., 0.95).
+- **Returns:** `DOUBLE PRECISION`
+- **Example:**
+  ```sql
+  -- Assuming mean=0.001, scale=0.015, dof=5
+  SELECT pgquant_var_t(0.001, 0.015, 5.0, 0.95) AS var_95_t;
+  ```
+
+### `pgquant_es_t(mu DOUBLE PRECISION, sigma DOUBLE PRECISION, dof DOUBLE PRECISION, alpha DOUBLE PRECISION)`
+Computes the Student-t Expected Shortfall using the exact analytical tail-expectation formula. Note that `dof` must be strictly greater than 1 for Expected Shortfall to be mathematically defined.
+- **Returns:** `DOUBLE PRECISION`
