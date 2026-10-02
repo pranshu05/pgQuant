@@ -3,6 +3,7 @@ use pgrx::prelude::*;
 
 ::pgrx::pg_module_magic!();
 
+pub mod covariance;
 pub mod returns;
 pub mod risk;
 pub mod spi_helpers;
@@ -34,7 +35,8 @@ mod tests {
         );
         assert!(
             version.contains(env!("CARGO_PKG_VERSION")),
-            "version string should contain the crate version. Got: {}", version
+            "version string should contain the crate version. Got: {}",
+            version
         );
     }
 }

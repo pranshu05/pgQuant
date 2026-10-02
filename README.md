@@ -31,7 +31,11 @@ The inspiration for starting this project was the course I have taken currently,
   - Exponentially Weighted Moving Average (EWMA) Volatility
   - EWMA Lambda Estimation via MLE
   - GARCH(1,1) parameter estimation with normal and Student-t innovations
-- **Covariance:** Sample and Shrinkage covariance (Ledoit-Wolf style).
+- **[Covariance (docs/covariance.md)](docs/covariance.md):**
+  - Sample Covariance Matrix (flattened output)
+  - Shrinkage Covariance Matrix (Ledoit-Wolf style)
+
+**Planned Features (WIP):**
 - **Factor Construction:** SMB, HML, and WML (momentum) construction.
 - **Portfolio Optimization:** Unconstrained and constrained (long-only) mean-variance optimization.
 
