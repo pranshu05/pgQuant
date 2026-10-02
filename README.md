@@ -1,6 +1,14 @@
-# pgQuant
-
-**pgQuant - the quant toolkit Postgres never had**
+<div align="center">
+  <img src="assets/logo.jpg" alt="pgQuant Logo" width="300"/>
+  <h1>pgQuant</h1>
+  <p><strong>The quant toolkit Postgres never had</strong></p>
+  
+  [![Release](https://img.shields.io/github/v/release/pranshu05patel/pgQuant?style=flat-square)](https://github.com/pranshu05patel/pgQuant/releases)
+  [![Build Status](https://img.shields.io/github/actions/workflow/status/pranshu05patel/pgQuant/release.yml?branch=main&style=flat-square)](https://github.com/pranshu05patel/pgQuant/actions)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%20%7C%2015%20%7C%2016%20%7C%2017-336791?style=flat-square&logo=postgresql)](https://postgresql.org)
+  [![Rust](https://img.shields.io/badge/Rust-1.84+-black?style=flat-square&logo=rust)](https://rust-lang.org)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+</div>
 
 `pgQuant` is a PostgreSQL extension written in Rust (using `pgrx`) that brings quantitative finance primitives - returns, risk (VaR/ES), volatility (rolling/EWMA/GARCH), covariance (sample/shrinkage), factor construction (HML/SMB/WML), and mean-variance portfolio optimization directly into SQL. It operates directly on your own price and returns tables.
 
