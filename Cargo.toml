@@ -27,7 +27,8 @@ pgrx = "=0.12.9"
 # Pinned for later phases — do not add until needed:
 # nalgebra = "=0.33.2"     # Phase 4+: matrix ops for covariance/optimization
 statrs = "=0.18.0"       # Phase 2+: Normal/Student-t distributions for VaR
-# argmin = "=0.10.0"       # Phase 3+: MLE fitting for GARCH/EWMA
+argmin = "=0.10.0"        # Phase 3+: MLE fitting for GARCH/EWMA
+argmin-math = "=0.4.0"    # Phase 3+: math backend for argmin
 
 
 [dev-dependencies]

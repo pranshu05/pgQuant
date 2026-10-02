@@ -21,6 +21,7 @@ The inspiration for starting this project was the course I have taken currently,
 - **[Volatility Models (docs/volatility.md)](docs/volatility.md):**
   - Rolling Volatility (configurable window)
   - Exponentially Weighted Moving Average (EWMA) Volatility
+  - EWMA Lambda Estimation via MLE
 
 **Planned Features (WIP):**
 - **Volatility Models:** GARCH(1,1) estimation via MLE.
