@@ -143,7 +143,6 @@ pub fn pgquant_es_t(mean: f64, stddev: f64, dof: f64, confidence: f64) -> f64 {
 #[pg_schema]
 mod tests {
     use super::*;
-    use pgrx::prelude::*;
 
     #[pg_test]
     fn test_historical_var_es() {

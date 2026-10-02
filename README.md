@@ -18,9 +18,12 @@ The inspiration for starting this project was the course I have taken currently,
   - Historical Value at Risk (VaR) & Expected Shortfall (ES)
   - Gaussian (parametric) VaR & ES
   - Student-t (parametric) VaR & ES
+- **[Volatility Models (docs/volatility.md)](docs/volatility.md):**
+  - Rolling Volatility (configurable window)
+  - Exponentially Weighted Moving Average (EWMA) Volatility
 
 **Planned Features (WIP):**
-- **Volatility Models:** Rolling volatility, EWMA, and GARCH(1,1) estimation via MLE.
+- **Volatility Models:** GARCH(1,1) estimation via MLE.
 - **Covariance:** Sample and Shrinkage covariance (Ledoit-Wolf style).
 - **Factor Construction:** SMB, HML, and WML (momentum) construction.
 - **Portfolio Optimization:** Unconstrained and constrained (long-only) mean-variance optimization.

@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use pgrx::prelude::*;
 
 ::pgrx::pg_module_magic!();
@@ -5,6 +6,7 @@ use pgrx::prelude::*;
 pub mod returns;
 pub mod risk;
 pub mod spi_helpers;
+pub mod volatility;
 
 /// Returns the current pgquant version string.
 ///

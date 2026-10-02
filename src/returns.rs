@@ -127,7 +127,6 @@ pub fn pgquant_cumulative_log_return(returns: Vec<f64>) -> f64 {
 #[pg_schema]
 mod tests {
     use super::*;
-    use pgrx::prelude::*;
 
     #[pg_test]
     fn test_pgquant_log_return() {
