@@ -67,7 +67,7 @@ jobs:
               if: env.SKIP_RELEASE == 'false'
               run: |
                   for PG_VER in 14 15 16 17; do
-                    cargo pgrx package --pg${PG_VER}
+                    cargo pgrx package --features pg${PG_VER}
                     cd target/release/pgquant-pg${PG_VER}
                     zip -r ../../../pgquant-v${{ env.VERSION }}-pg${PG_VER}-linux-amd64.zip .
                     cd ../../..
