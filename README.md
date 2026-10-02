@@ -38,23 +38,43 @@ Rather than owning a schema, `pgQuant` is designed to be flexible. Functions acc
    ```
 2. Or a plain `double precision[]` array for simpler aggregate-style functions that you can extract via a normal SQL query.
 
-## Building and Installation
+## Installation
 
-This extension is built with [pgrx](https://github.com/pgcentralfoundation/pgrx). 
+### 1. Pre-Compiled Release (Recommended)
+You can download the pre-compiled binary for your specific PostgreSQL version directly from the [GitHub Releases](https://github.com/pranshu05patel/pgQuant/releases) page.
 
-Prerequisites:
-- Rust toolchain
-- PostgreSQL 15, 16, or 17
-- `cargo-pgrx` installed and initialized
+1. Download the ZIP file for your PostgreSQL version (e.g., `pgquant-v0.1.2-pg14-linux-amd64.zip`).
+2. Unzip the file:
+   ```bash
+   unzip pgquant-v0.1.2-pg14-linux-amd64.zip
+   ```
+3. Copy the library and extension files into your PostgreSQL installation directories:
+   ```bash
+   # Copy the shared library
+   sudo cp usr/lib/postgresql/14/lib/pgquant.so /usr/lib/postgresql/14/lib/
+   
+   # Copy the control and SQL schema files
+   sudo cp usr/share/postgresql/14/extension/pgquant* /usr/share/postgresql/14/extension/
+   ```
+4. Finally, connect to your PostgreSQL database and enable the extension:
+   ```sql
+   CREATE EXTENSION pgquant;
+   ```
 
-To build and run:
+### 2. Compiling from Source
+If you prefer to compile the extension yourself or are using a different OS/architecture, you will need the Rust toolchain and `cargo-pgrx` (version `0.12.9`).
+
 ```bash
-cargo pgrx run
-```
+# Clone the repository
+git clone https://github.com/pranshu05patel/pgQuant.git
+cd pgQuant
 
-To run tests:
-```bash
-cargo pgrx test
+# Install cargo-pgrx (0.12.9)
+cargo install --locked cargo-pgrx --version "=0.12.9"
+cargo pgrx init
+
+# Compile and install directly into your local PostgreSQL
+cargo pgrx install --release
 ```
 
 ## License
