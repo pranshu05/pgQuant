@@ -67,10 +67,14 @@ jobs:
               if: env.SKIP_RELEASE == 'false'
               run: |
                   for PG_VER in 14 15 16 17; do
-                    cargo pgrx package --features pg${PG_VER}
-                    cd target/release/pgquant-pg${PG_VER}
-                    zip -r ../../../pgquant-v${{ env.VERSION }}-pg${PG_VER}-linux-amd64.zip .
-                    cd ../../..
+                    PG_CONFIG_PATH=$(grep "pg${PG_VER} =" ~/.pgrx/config.toml | cut -d '"' -f 2)
+                    cargo pgrx package --pg-config "$PG_CONFIG_PATH"
+                    
+                    SO_FILE=$(find target/release/pgquant-pg${PG_VER} -name "pgquant.so")
+                    SQL_FILE=$(find target/release/pgquant-pg${PG_VER} -name "pgquant--*.sql")
+                    CONTROL_FILE=$(find target/release/pgquant-pg${PG_VER} -name "pgquant.control")
+                    
+                    zip -j pgquant-v${{ env.VERSION }}-pg${PG_VER}-linux-amd64.zip $SO_FILE $SQL_FILE $CONTROL_FILE
                   done
 
             - name: Create GitHub Release

@@ -58,11 +58,15 @@ You can download the pre-compiled binary for your specific PostgreSQL version di
    ```
 3. Copy the library and extension files into your PostgreSQL installation directories:
    ```bash
+   # Find your PostgreSQL library and extension directories
+   PG_LIB=$(pg_config --pkglibdir)
+   PG_EXT=$(pg_config --sharedir)/extension
+   
    # Copy the shared library
-   sudo cp usr/lib/postgresql/14/lib/pgquant.so /usr/lib/postgresql/14/lib/
+   sudo cp pgquant.so $PG_LIB/
    
    # Copy the control and SQL schema files
-   sudo cp usr/share/postgresql/14/extension/pgquant* /usr/share/postgresql/14/extension/
+   sudo cp pgquant.control pgquant--*.sql $PG_EXT/
    ```
 4. Finally, connect to your PostgreSQL database and enable the extension:
    ```sql
