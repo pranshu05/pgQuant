@@ -22,9 +22,10 @@ The inspiration for starting this project was the course I have taken currently,
   - Rolling Volatility (configurable window)
   - Exponentially Weighted Moving Average (EWMA) Volatility
   - EWMA Lambda Estimation via MLE
+  - GARCH(1,1) parameter estimation with normal innovations
 
 **Planned Features (WIP):**
-- **Volatility Models:** GARCH(1,1) estimation via MLE.
+- **Volatility Models:** GARCH(1,1) estimation via MLE (Student-t).
 - **Covariance:** Sample and Shrinkage covariance (Ledoit-Wolf style).
 - **Factor Construction:** SMB, HML, and WML (momentum) construction.
 - **Portfolio Optimization:** Unconstrained and constrained (long-only) mean-variance optimization.

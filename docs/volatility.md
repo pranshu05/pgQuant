@@ -52,3 +52,20 @@ Estimates the optimal EWMA decay factor (lambda) via Maximum Likelihood Estimati
        lam AS (SELECT pgquant_ewma_lambda_mle(array_agg(simple_return)) AS l FROM rets)
   SELECT pgquant_ewma_vol(array_agg(rets.simple_return), lam.l) FROM rets, lam;
   ```
+
+## GARCH(1,1) Parameter Estimation
+
+### `pgquant_garch11_normal(returns DOUBLE PRECISION[])`
+Estimates the GARCH(1,1) model parameters ($\omega$, $\alpha$, $\beta$) using Maximum Likelihood Estimation (MLE) assuming normally distributed innovations.
+- **Arguments:**
+  - `returns`: Array of daily returns (requires at least 10 observations).
+- **Returns:** A single row containing:
+  - `omega`: The constant term in the variance equation.
+  - `alpha`: The ARCH term (reaction to past squared returns).
+  - `beta`: The GARCH term (persistence of past variance).
+  - `loglik`: The final maximized log-likelihood value.
+- **Example:**
+  ```sql
+  WITH rets AS (SELECT simple_return FROM pgquant_simple_returns('...'))
+  SELECT * FROM pgquant_garch11_normal(array_agg(simple_return)) FROM rets;
+  ```
