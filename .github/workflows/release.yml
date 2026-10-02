@@ -51,6 +51,10 @@ jobs:
                       ~/.pgrx
                   key: ${{ runner.os }}-cargo-pgrx-0.12.9-${{ hashFiles('**/Cargo.toml') }}
 
+            - name: Install system dependencies
+              if: env.SKIP_RELEASE == 'false'
+              run: sudo apt-get update && sudo apt-get install -y libreadline-dev zlib1g-dev flex bison libssl-dev libclang-dev
+
             - name: Install cargo-pgrx
               if: env.SKIP_RELEASE == 'false'
               run: cargo install --locked cargo-pgrx --version "=0.12.9"
