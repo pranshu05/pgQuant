@@ -69,3 +69,19 @@ Estimates the GARCH(1,1) model parameters ($\omega$, $\alpha$, $\beta$) using Ma
   WITH rets AS (SELECT simple_return FROM pgquant_simple_returns('...'))
   SELECT * FROM pgquant_garch11_normal(array_agg(simple_return)) FROM rets;
   ```
+
+### `pgquant_garch11_t(returns DOUBLE PRECISION[])`
+Estimates the GARCH(1,1) model parameters ($\omega$, $\alpha$, $\beta$) along with the degrees of freedom ($\nu$) using Maximum Likelihood Estimation (MLE) assuming Student-t distributed innovations. This model accounts for fatter tails in financial returns compared to the normal distribution.
+- **Arguments:**
+  - `returns`: Array of daily returns (requires at least 10 observations).
+- **Returns:** A single row containing:
+  - `omega`: The constant term in the variance equation.
+  - `alpha`: The ARCH term (reaction to past squared returns).
+  - `beta`: The GARCH term (persistence of past variance).
+  - `nu`: The estimated degrees of freedom of the Student-t distribution (captures tail thickness).
+  - `loglik`: The final maximized log-likelihood value.
+- **Example:**
+  ```sql
+  WITH rets AS (SELECT log_return FROM pgquant_log_returns('...'))
+  SELECT * FROM pgquant_garch11_t(array_agg(log_return)) FROM rets;
+  ```

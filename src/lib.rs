@@ -33,8 +33,8 @@ mod tests {
             "version string should start with 'pgquant '"
         );
         assert!(
-            version.contains("0.1.0"),
-            "version string should contain the crate version"
+            version.contains(env!("CARGO_PKG_VERSION")),
+            "version string should contain the crate version. Got: {}", version
         );
     }
 }
