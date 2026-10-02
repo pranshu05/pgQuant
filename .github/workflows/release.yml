@@ -1,0 +1,80 @@
+name: Release pgQuant
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "Cargo.toml"
+            - "src/**"
+
+jobs:
+    build-and-release:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Extract version from Cargo.toml
+              id: get_version
+              run: |
+                  VERSION=$(grep '^version =' Cargo.toml | head -n 1 | awk -F'"' '{print $2}')
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+                  echo "Extracted version: $VERSION"
+
+            - name: Check if Release exists
+              id: check_release
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  if gh release view "v$VERSION" > /dev/null 2>&1; then
+                    echo "Release v$VERSION already exists. Skipping build."
+                    echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+                  else
+                    echo "SKIP_RELEASE=false" >> $GITHUB_ENV
+                  fi
+
+            - name: Install Rust
+              if: env.SKIP_RELEASE == 'false'
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Cache cargo registry and pgrx
+              if: env.SKIP_RELEASE == 'false'
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      ~/.pgrx
+                  key: ${{ runner.os }}-cargo-pgrx-0.12.9-${{ hashFiles('**/Cargo.toml') }}
+
+            - name: Install cargo-pgrx
+              if: env.SKIP_RELEASE == 'false'
+              run: cargo install --locked cargo-pgrx --version "=0.12.9"
+
+            - name: Initialize pgrx
+              if: env.SKIP_RELEASE == 'false'
+              run: cargo pgrx init
+
+            - name: Build and Package for PG14, PG15, PG16, PG17
+              if: env.SKIP_RELEASE == 'false'
+              run: |
+                  for PG_VER in 14 15 16 17; do
+                    cargo pgrx package --release --pg${PG_VER}
+                    cd target/release/pgquant-pg${PG_VER}
+                    zip -r ../../../pgquant-v${{ env.VERSION }}-pg${PG_VER}-linux-amd64.zip .
+                    cd ../../..
+                  done
+
+            - name: Create GitHub Release
+              if: env.SKIP_RELEASE == 'false'
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: v${{ env.VERSION }}
+                  name: pgQuant v${{ env.VERSION }}
+                  files: pgquant-v${{ env.VERSION }}-*-linux-amd64.zip
+                  generate_release_notes: true
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
