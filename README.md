@@ -3,8 +3,8 @@
   <h1>pgQuant</h1>
   <p><strong>The quant toolkit Postgres never had</strong></p>
   
-  [![Release](https://img.shields.io/github/v/release/pranshu05patel/pgQuant?style=flat-square)](https://github.com/pranshu05patel/pgQuant/releases)
-  [![Build Status](https://img.shields.io/github/actions/workflow/status/pranshu05patel/pgQuant/release.yml?branch=main&style=flat-square)](https://github.com/pranshu05patel/pgQuant/actions)
+  [![Release](https://img.shields.io/github/v/release/pranshu05/pgQuant?style=flat-square)](https://github.com/pranshu05/pgQuant/releases)
+  [![Build Status](https://img.shields.io/github/actions/workflow/status/pranshu05/pgQuant/release.yml?branch=main&style=flat-square)](https://github.com/pranshu05/pgQuant/actions)
   [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%20%7C%2015%20%7C%2016%20%7C%2017-336791?style=flat-square&logo=postgresql)](https://postgresql.org)
   [![Rust](https://img.shields.io/badge/Rust-1.84+-black?style=flat-square&logo=rust)](https://rust-lang.org)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -49,7 +49,7 @@ Rather than owning a schema, `pgQuant` is designed to be flexible. Functions acc
 ## Installation
 
 ### 1. Pre-Compiled Release (Recommended)
-You can download the pre-compiled binary for your specific PostgreSQL version directly from the [GitHub Releases](https://github.com/pranshu05patel/pgQuant/releases) page.
+You can download the pre-compiled binary for your specific PostgreSQL version directly from the [GitHub Releases](https://github.com/pranshu05/pgQuant/releases) page.
 
 1. Download the ZIP file for your PostgreSQL version (e.g., `pgquant-v0.1.2-pg14-linux-amd64.zip`).
 2. Unzip the file:
@@ -74,7 +74,7 @@ If you prefer to compile the extension yourself or are using a different OS/arch
 
 ```bash
 # Clone the repository
-git clone https://github.com/pranshu05patel/pgQuant.git
+git clone https://github.com/pranshu05/pgQuant.git
 cd pgQuant
 
 # Install cargo-pgrx (0.12.9)
