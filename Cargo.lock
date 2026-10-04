@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "pgquant"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "argmin",
  "argmin-math",

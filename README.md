@@ -34,6 +34,8 @@ The inspiration for starting this project was the course I have taken currently,
 - **[Covariance (docs/covariance.md)](docs/covariance.md):**
   - Sample Covariance Matrix (flattened output)
   - Shrinkage Covariance Matrix (Ledoit-Wolf style)
+- **[Factor Construction (docs/factors.md)](docs/factors.md):**
+  - Portfolio sort infrastructure (cross-sectional bucketing)
 
 **Planned Features (WIP):**
 - **Factor Construction:** SMB, HML, and WML (momentum) construction.

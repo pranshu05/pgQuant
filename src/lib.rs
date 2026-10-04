@@ -4,6 +4,7 @@ use pgrx::prelude::*;
 ::pgrx::pg_module_magic!();
 
 pub mod covariance;
+pub mod factors;
 pub mod returns;
 pub mod risk;
 pub mod spi_helpers;
