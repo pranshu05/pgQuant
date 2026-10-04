@@ -64,19 +64,19 @@ pub fn pgquant_sample_cov(
     }
 
     // DMatrix::from_row_slice expects data row by row
-    let mut returns_matrix = DMatrix::from_row_slice(num_dates, num_symbols, &matrix_data);
+    let returns_matrix = DMatrix::from_row_slice(num_dates, num_symbols, &matrix_data);
 
-    // Mean-center the columns
+    // Compute Sample Covariance using the matrix formula:
+    // C = (X^T * X - 1/N * s * s^T) / (N - 1)
+    let mut sums = nalgebra::DVector::zeros(num_symbols);
     for j in 0..num_symbols {
-        let col = returns_matrix.column(j);
-        let mean = col.sum() / (num_dates as f64);
-        for i in 0..num_dates {
-            returns_matrix[(i, j)] -= mean;
-        }
+        sums[j] = returns_matrix.column(j).sum();
     }
-
-    // Compute Sample Covariance: C = (R^T * R) / (N - 1)
-    let cov_matrix = (returns_matrix.transpose() * returns_matrix) / ((num_dates - 1) as f64);
+    
+    let xt_x = returns_matrix.transpose() * &returns_matrix;
+    let s_st = &sums * sums.transpose();
+    
+    let cov_matrix = (xt_x - s_st / (num_dates as f64)) / ((num_dates - 1) as f64);
 
     // Flatten to tabular output
     let mut results = Vec::with_capacity(num_symbols * num_symbols);
@@ -152,16 +152,23 @@ pub fn pgquant_shrinkage_cov_lw(
 
     let mut returns_matrix = DMatrix::from_row_slice(num_dates, num_symbols, &matrix_data);
 
-    // Mean-center the columns
+    // Compute Sample Covariance using the matrix formula:
+    // S = (X^T * X - 1/N * s * s^T) / (N - 1)
+    // We also mean-center the matrix for the variance computation below.
+    let mut sums = nalgebra::DVector::zeros(num_symbols);
     for j in 0..num_symbols {
         let col = returns_matrix.column(j);
-        let mean = col.sum() / (num_dates as f64);
+        let sum = col.sum();
+        sums[j] = sum;
+        let mean = sum / (num_dates as f64);
         for i in 0..num_dates {
             returns_matrix[(i, j)] -= mean;
         }
     }
-
-    // Compute Sample Covariance: S = (R^T * R) / (N - 1)
+    
+    // We could compute S from centered returns directly as before,
+    // or use the formula. Since we already mean-centered for the LW loop,
+    // let's just do (X^T * X) / (N-1) using the centered matrix, which is mathematically identical.
     let sample_cov = (returns_matrix.transpose() * &returns_matrix) / ((num_dates - 1) as f64);
 
     // Compute Target F = mu * I, where mu = trace(S) / num_symbols

@@ -1,4 +1,5 @@
 use pgrx::prelude::*;
+use crate::mle::optimize_mle_1d;
 
 /// Computes the Exponentially Weighted Moving Average (EWMA) volatility series.
 /// Given an array of returns and a decay factor lambda (e.g., 0.94 for RiskMetrics).
@@ -36,42 +37,7 @@ pub fn pgquant_ewma_vol(returns: Vec<f64>, lambda: f64) -> Vec<f64> {
     vol_series
 }
 
-/// Computes the EWMA negative log-likelihood for a given lambda.
-/// Uses Gaussian assumption: r_t ~ N(0, sigma_t^2)
-/// where sigma_t^2 is the PRIOR forecast before observing r_t,
-/// updated as: sigma_{t+1}^2 = lambda * sigma_t^2 + (1-lambda) * r_t^2
-/// NLL = 0.5 * sum_t [ ln(sigma_t^2) + r_t^2 / sigma_t^2 ]
-/// (constant ln(2*pi) terms dropped since they don't affect the argmin)
-fn ewma_nll(returns: &[f64], lambda: f64) -> f64 {
-    if returns.len() < 2 {
-        return f64::INFINITY;
-    }
-
-    // Initialize variance as sample variance of all returns
-    let n = returns.len() as f64;
-    let sum: f64 = returns.iter().sum();
-    let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-    let initial_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
-
-    let mut current_var = initial_var;
-    let mut nll = 0.0;
-
-    for &r in returns {
-        // Guard against zero/negative variance (numerical edge case)
-        if current_var <= 0.0 {
-            current_var = 1e-12;
-        }
-        // Evaluate likelihood using the PRIOR forecast (before seeing r_t)
-        nll += current_var.ln() + (r * r) / current_var;
-        // Now update variance for the next period
-        current_var = lambda * current_var + (1.0 - lambda) * (r * r);
-    }
-
-    0.5 * nll
-}
-
-/// Estimates the optimal EWMA lambda via MLE using Brent's method
-/// (golden-section bounded scalar optimization on [0.01, 0.9999]).
+/// Estimates the optimal EWMA lambda via MLE using Brent's method.
 /// Returns the lambda that maximizes the Gaussian log-likelihood
 /// of the EWMA variance model given observed returns.
 #[pg_extern]
@@ -80,116 +46,31 @@ pub fn pgquant_ewma_lambda_mle(returns: Vec<f64>) -> f64 {
         pgrx::error!("Need at least 3 observations for lambda estimation");
     }
 
-    // Brent's method on the interval [lo, hi] — a simple bounded
-    // 1-D scalar minimiser. We use the textbook implementation
-    // (golden-section + parabolic interpolation) to avoid pulling
-    // in an additional argmin solver dependency for a scalar problem.
+    // Initialize variance as sample variance of all returns
+    let n = returns.len() as f64;
+    let sum: f64 = returns.iter().sum();
+    let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
+    let initial_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+
+    let init_state = |_lambda| Some(initial_var);
+    
+    let ll_obs = |current_var: &mut f64, r: f64, lambda: f64| -> f64 {
+        if *current_var <= 0.0 {
+            *current_var = 1e-12;
+        }
+        let ll = -0.5 * (current_var.ln() + (r * r) / *current_var);
+        *current_var = lambda * *current_var + (1.0 - lambda) * (r * r);
+        ll
+    };
+
     let lo = 0.01_f64;
     let hi = 0.9999_f64;
 
-    let result = brent_min(|lam| ewma_nll(&returns, lam), lo, hi, 1e-8, 200);
-    result
+    let result = optimize_mle_1d(&returns, ll_obs, init_state, lo, hi, 200)
+        .unwrap_or_else(|e| pgrx::error!("Optimization failed: {}", e));
+
+    result.0
 }
-
-/// Brent's method for finding the minimum of a unimodal function f on [a, b].
-/// `tol` is the desired precision, `max_iter` caps iterations.
-/// Returns the x value that minimises f.
-fn brent_min<F: Fn(f64) -> f64>(f: F, mut a: f64, mut b: f64, tol: f64, max_iter: usize) -> f64 {
-    let golden: f64 = 0.381966011250105; // (3 - sqrt(5)) / 2
-
-    let mut x = a + golden * (b - a);
-    let mut w = x;
-    let mut v = x;
-    let mut fx = f(x);
-    let mut fw = fx;
-    let mut fv = fx;
-    let mut d = 0.0_f64;
-    let mut e = 0.0_f64;
-
-    for _ in 0..max_iter {
-        let midpoint = 0.5 * (a + b);
-        let tol1 = tol * x.abs() + 1e-10;
-        let tol2 = 2.0 * tol1;
-
-        if (x - midpoint).abs() <= tol2 - 0.5 * (b - a) {
-            return x;
-        }
-
-        // Try parabolic interpolation
-        let mut use_golden = true;
-        let mut u = 0.0_f64;
-
-        if e.abs() > tol1 {
-            // Fit parabola
-            let r = (x - w) * (fx - fv);
-            let q = (x - v) * (fx - fw);
-            let p = (x - v) * q - (x - w) * r;
-            let q = 2.0 * (q - r);
-            let (p, q) = if q > 0.0 { (-p, q) } else { (p, -q) };
-
-            if p.abs() < (0.5 * q * e).abs() && p > q * (a - x) && p < q * (b - x) {
-                // Parabolic step
-                let step = p / q;
-                u = x + step;
-                if (u - a) < tol2 || (b - u) < tol2 {
-                    u = if x < midpoint { x + tol1 } else { x - tol1 };
-                }
-                use_golden = false;
-                d = step;
-            }
-        }
-
-        if use_golden {
-            e = if x < midpoint { b - x } else { a - x };
-            d = golden * e;
-            u = x + d;
-        }
-
-        // Ensure u differs from x by at least tol1
-        let u = if (u - x).abs() >= tol1 {
-            u
-        } else if d > 0.0 {
-            x + tol1
-        } else {
-            x - tol1
-        };
-
-        let fu = f(u);
-
-        // Update brackets
-        if fu <= fx {
-            if u < x {
-                b = x;
-            } else {
-                a = x;
-            }
-            v = w;
-            fv = fw;
-            w = x;
-            fw = fx;
-            x = u;
-            fx = fu;
-        } else {
-            if u < x {
-                a = u;
-            } else {
-                b = u;
-            }
-            if fu <= fw || (w - x).abs() < 1e-15 {
-                v = w;
-                fv = fw;
-                w = u;
-                fw = fu;
-            } else if fu <= fv || (v - x).abs() < 1e-15 || (v - w).abs() < 1e-15 {
-                v = u;
-                fv = fu;
-            }
-        }
-    }
-
-    x
-}
-
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
@@ -285,9 +166,25 @@ mod tests {
         }
 
         let est = pgquant_ewma_lambda_mle(returns.clone());
-        let nll_est = super::ewma_nll(&returns, est);
-        let nll_low = super::ewma_nll(&returns, 0.05);
-        let nll_high = super::ewma_nll(&returns, 0.999);
+        let ll_obs = |current_var: &mut f64, r: f64, lambda: f64| -> f64 {
+            if *current_var <= 0.0 { *current_var = 1e-12; }
+            let ll = -0.5 * (current_var.ln() + (r * r) / *current_var);
+            *current_var = lambda * *current_var + (1.0 - lambda) * (r * r);
+            ll
+        };
+        let n = returns.len() as f64;
+        let sum: f64 = returns.iter().sum();
+        let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
+        let initial_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+        let mut nll_est = 0.0;
+        let mut state_est = initial_var;
+        for &r in &returns { nll_est -= ll_obs(&mut state_est, r, est); }
+        let mut nll_low = 0.0;
+        let mut state_low = initial_var;
+        for &r in &returns { nll_low -= ll_obs(&mut state_low, r, 0.05); }
+        let mut nll_high = 0.0;
+        let mut state_high = initial_var;
+        for &r in &returns { nll_high -= ll_obs(&mut state_high, r, 0.999); }
 
         assert!(
             nll_est <= nll_low,

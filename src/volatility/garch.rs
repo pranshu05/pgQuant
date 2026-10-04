@@ -1,44 +1,5 @@
-use argmin::core::{CostFunction, Executor, State};
-use argmin::solver::neldermead::NelderMead;
+use crate::mle::optimize_mle_nd;
 use pgrx::prelude::*;
-
-/// Computes the negative log-likelihood for GARCH(1,1) with normal innovations.
-/// params = [omega, alpha, beta]
-struct Garch11NormalNLL<'a> {
-    returns: &'a [f64],
-    initial_var: f64,
-}
-
-impl<'a> CostFunction for Garch11NormalNLL<'a> {
-    type Param = Vec<f64>;
-    type Output = f64;
-
-    fn cost(&self, p: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
-        let omega = p[0];
-        let alpha = p[1];
-        let beta = p[2];
-
-        // Bounds/Constraints checking via penalty
-        if omega <= 0.0 || alpha < 0.0 || beta < 0.0 || (alpha + beta) >= 1.0 {
-            return Ok(f64::INFINITY);
-        }
-
-        let mut current_var = self.initial_var;
-        let mut nll = 0.0;
-
-        for &r in self.returns {
-            // Guard against variance collapse
-            if current_var <= 0.0 {
-                current_var = 1e-12;
-            }
-            nll += current_var.ln() + (r * r) / current_var;
-            // Update variance for next step
-            current_var = omega + alpha * (r * r) + beta * current_var;
-        }
-
-        Ok(0.5 * nll)
-    }
-}
 
 /// Estimates GARCH(1,1) parameters (omega, alpha, beta) and the final log-likelihood
 /// using MLE with normal innovations.
@@ -66,15 +27,31 @@ pub fn pgquant_garch11_normal(
     let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
     let sample_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
 
-    let cost = Garch11NormalNLL {
-        returns: &returns,
-        initial_var: sample_var,
+    let init_state = |p: &[f64]| {
+        let omega = p[0];
+        let alpha = p[1];
+        let beta = p[2];
+        if omega <= 0.0 || alpha < 0.0 || beta < 0.0 || (alpha + beta) >= 1.0 {
+            None
+        } else {
+            Some(sample_var)
+        }
     };
 
-    // Initial guess: based on typical financial data
-    let init_param = vec![sample_var * 0.05, 0.05, 0.90];
+    let ll_obs = |current_var: &mut f64, r: f64, p: &[f64]| {
+        let omega = p[0];
+        let alpha = p[1];
+        let beta = p[2];
 
-    // Simplex vertices around the initial guess
+        if *current_var <= 0.0 {
+            *current_var = 1e-12;
+        }
+        let ll = -0.5 * (current_var.ln() + (r * r) / *current_var);
+        *current_var = omega + alpha * (r * r) + beta * *current_var;
+        ll
+    };
+
+    let init_param = vec![sample_var * 0.05, 0.05, 0.90];
     let initial_simplex = vec![
         init_param.clone(),
         vec![sample_var * 0.1, 0.05, 0.90],
@@ -82,77 +59,17 @@ pub fn pgquant_garch11_normal(
         vec![sample_var * 0.05, 0.05, 0.85],
     ];
 
-    let solver = NelderMead::new(initial_simplex)
-        .with_sd_tolerance(1e-6)
-        .unwrap();
-
-    let res = Executor::new(cost, solver)
-        .configure(|state| state.max_iters(1000))
-        .run()
+    let result = optimize_mle_nd(&returns, ll_obs, init_state, initial_simplex, 1000, 1e-6)
         .unwrap_or_else(|e| pgrx::error!("Optimization failed: {}", e));
 
-    let best_param = res.state().get_best_param().unwrap().clone();
-    let best_cost = res.state().get_best_cost();
+    let best_param = result.0;
+    let loglik = result.1;
 
     let omega = best_param[0];
     let alpha = best_param[1];
     let beta = best_param[2];
-    // Return positive log likelihood
-    let loglik = -best_cost;
 
     Ok(TableIterator::new(vec![(omega, alpha, beta, loglik)]))
-}
-
-/// Computes the negative log-likelihood for GARCH(1,1) with Student-t innovations.
-/// params = [omega, alpha, beta, nu]
-struct Garch11TNLL<'a> {
-    returns: &'a [f64],
-    initial_var: f64,
-}
-
-impl<'a> CostFunction for Garch11TNLL<'a> {
-    type Param = Vec<f64>;
-    type Output = f64;
-
-    fn cost(&self, p: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
-        let omega = p[0];
-        let alpha = p[1];
-        let beta = p[2];
-        let nu = p[3];
-
-        // Bounds/Constraints checking via penalty
-        if omega <= 0.0 || alpha < 0.0 || beta < 0.0 || (alpha + beta) >= 1.0 || nu <= 2.01 {
-            return Ok(f64::INFINITY);
-        }
-
-        let mut current_var = self.initial_var;
-        let mut nll = 0.0;
-
-        // Precompute constant log-gamma terms
-        // ln(Gamma((nu+1)/2)) - ln(Gamma(nu/2)) - 0.5*ln(pi * (nu-2))
-        let half_nu = nu * 0.5;
-        let log_gamma_diff = statrs::function::gamma::ln_gamma(half_nu + 0.5)
-            - statrs::function::gamma::ln_gamma(half_nu);
-        let const_term = log_gamma_diff - 0.5 * (std::f64::consts::PI * (nu - 2.0)).ln();
-
-        for &r in self.returns {
-            if current_var <= 0.0 {
-                current_var = 1e-12;
-            }
-
-            // Student-t log-likelihood for r_t
-            let term1 = -0.5 * current_var.ln();
-            let term2 = -(half_nu + 0.5) * (1.0 + (r * r) / (current_var * (nu - 2.0))).ln();
-
-            let ll_t = const_term + term1 + term2;
-            nll -= ll_t; // We want negative log-likelihood
-
-            // Update variance for next step
-            current_var = omega + alpha * (r * r) + beta * current_var;
-        }
-
-        Ok(nll)
-    }
 }
 
 /// Estimates GARCH(1,1) parameters (omega, alpha, beta, nu) and the final log-likelihood
@@ -182,15 +99,47 @@ pub fn pgquant_garch11_t(
     let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
     let sample_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
 
-    let cost = Garch11TNLL {
-        returns: &returns,
-        initial_var: sample_var,
+    let init_state = |p: &[f64]| {
+        let omega = p[0];
+        let alpha = p[1];
+        let beta = p[2];
+        let nu = p[3];
+        if omega <= 0.0 || alpha < 0.0 || beta < 0.0 || (alpha + beta) >= 1.0 || nu <= 2.01 {
+            None
+        } else {
+            // Also return the precomputed constant term for the state so we don't recalculate it
+            let half_nu = nu * 0.5;
+            let log_gamma_diff = statrs::function::gamma::ln_gamma(half_nu + 0.5)
+                - statrs::function::gamma::ln_gamma(half_nu);
+            let const_term = log_gamma_diff - 0.5 * (std::f64::consts::PI * (nu - 2.0)).ln();
+            Some((sample_var, const_term))
+        }
     };
 
-    // Initial guess: based on typical financial data. nu=5.0 is a common starting point for fat tails.
-    let init_param = vec![sample_var * 0.05, 0.05, 0.90, 5.0];
+    let ll_obs = |state: &mut (f64, f64), r: f64, p: &[f64]| {
+        let omega = p[0];
+        let alpha = p[1];
+        let beta = p[2];
+        let nu = p[3];
 
-    // Simplex vertices around the initial guess for 4D
+        let current_var = &mut state.0;
+        let const_term = state.1;
+
+        if *current_var <= 0.0 {
+            *current_var = 1e-12;
+        }
+
+        let half_nu = nu * 0.5;
+        let term1 = -0.5 * current_var.ln();
+        let term2 = -(half_nu + 0.5) * (1.0 + (r * r) / (*current_var * (nu - 2.0))).ln();
+
+        let ll_t = const_term + term1 + term2;
+
+        *current_var = omega + alpha * (r * r) + beta * *current_var;
+        ll_t
+    };
+
+    let init_param = vec![sample_var * 0.05, 0.05, 0.90, 5.0];
     let initial_simplex = vec![
         init_param.clone(),
         vec![sample_var * 0.1, 0.05, 0.90, 5.0],
@@ -199,28 +148,19 @@ pub fn pgquant_garch11_t(
         vec![sample_var * 0.05, 0.05, 0.90, 8.0],
     ];
 
-    let solver = NelderMead::new(initial_simplex)
-        .with_sd_tolerance(1e-6)
-        .unwrap();
-
-    let res = Executor::new(cost, solver)
-        .configure(|state| state.max_iters(2000)) // More iterations for 4D
-        .run()
+    let result = optimize_mle_nd(&returns, ll_obs, init_state, initial_simplex, 2000, 1e-6)
         .unwrap_or_else(|e| pgrx::error!("Optimization failed: {}", e));
 
-    let best_param = res.state().get_best_param().unwrap().clone();
-    let best_cost = res.state().get_best_cost();
+    let best_param = result.0;
+    let loglik = result.1;
 
     let omega = best_param[0];
     let alpha = best_param[1];
     let beta = best_param[2];
     let nu = best_param[3];
-    // Return positive log likelihood
-    let loglik = -best_cost;
 
     Ok(TableIterator::new(vec![(omega, alpha, beta, nu, loglik)]))
 }
-
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
