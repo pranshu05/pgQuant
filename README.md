@@ -36,9 +36,10 @@ The inspiration for starting this project was the course I have taken currently,
   - Shrinkage Covariance Matrix (Ledoit-Wolf style)
 - **[Factor Construction (docs/factors.md)](docs/factors.md):**
   - Portfolio sort infrastructure (cross-sectional bucketing)
+  - SMB and HML factor construction (Fama-French double-sort)
 
 **Planned Features (WIP):**
-- **Factor Construction:** SMB, HML, and WML (momentum) construction.
+- **Factor Construction:** WML (momentum) construction.
 - **Portfolio Optimization:** Unconstrained and constrained (long-only) mean-variance optimization.
 
 ## Data Access Convention

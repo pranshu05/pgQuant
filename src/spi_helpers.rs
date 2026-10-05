@@ -29,6 +29,38 @@ pub fn fetch_timeseries(
     })
 }
 
+/// Executes a SQL query that returns columns (symbol text, date date, ret double precision, bucket1 integer, bucket2 integer, weight double precision).
+/// Returns a vector of tuples.
+pub fn fetch_factor_panel(
+    query: &str,
+) -> Result<Vec<(String, pgrx::datum::Date, f64, i32, i32, f64)>, pgrx::spi::Error> {
+    Spi::connect(|client| {
+        let mut results = Vec::new();
+        let table = client.select(query, None, None)?;
+        for row in table {
+            let symbol: String = row
+                .get(1)?
+                .unwrap_or_else(|| pgrx::error!("symbol column cannot be null"));
+            let date: pgrx::datum::Date = row
+                .get(2)?
+                .unwrap_or_else(|| pgrx::error!("date column cannot be null"));
+            let ret: f64 = row
+                .get(3)?
+                .unwrap_or_else(|| pgrx::error!("return column cannot be null"));
+            let b1: i32 = row
+                .get(4)?
+                .unwrap_or_else(|| pgrx::error!("bucket1 column cannot be null"));
+            let b2: i32 = row
+                .get(5)?
+                .unwrap_or_else(|| pgrx::error!("bucket2 column cannot be null"));
+            let weight: f64 = row.get(6)?.unwrap_or(1.0); // Default to 1.0 if null for equal-weighting
+
+            results.push((symbol, date, ret, b1, b2, weight));
+        }
+        Ok(results)
+    })
+}
+
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {

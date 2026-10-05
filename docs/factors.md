@@ -18,3 +18,19 @@ Sorts and buckets stocks cross-sectionally for each date based on a characterist
     5
   );
   ```
+
+### `pgquant_construct_smb(query TEXT)`
+Constructs the Fama-French SMB (Small Minus Big) factor return from a double-sort panel (Size and Book-to-Market). 
+
+- **Arguments:**
+  - `query`: A SQL query returning exactly `(symbol TEXT, date DATE, return DOUBLE PRECISION, size_bucket INT, btm_bucket INT, weight DOUBLE PRECISION)`.
+    - `size_bucket`: 1 (Small) or 2 (Big).
+    - `btm_bucket`: 1 (Growth), 2 (Neutral), or 3 (Value).
+    - `weight`: The weight of the asset in the bucket (e.g. market cap for value-weighted, or `1.0` for equal-weighted).
+- **Returns:** A table of `(date DATE, smb_return DOUBLE PRECISION)`.
+
+### `pgquant_construct_hml(query TEXT)`
+Constructs the Fama-French HML (High Minus Low) factor return. It uses the exact same input query structure as `pgquant_construct_smb` but outputs the HML portfolio return.
+
+- **Arguments:** Same as `pgquant_construct_smb`.
+- **Returns:** A table of `(date DATE, hml_return DOUBLE PRECISION)`.
