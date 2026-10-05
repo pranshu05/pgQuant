@@ -48,3 +48,11 @@ codegen-units = 1
 [[bench]]
 name = "cov_benchmark"
 harness = false
+
+[[bench]]
+name = "var_es_benchmark"
+harness = false
+
+[[bench]]
+name = "rolling_benchmark"
+harness = false
