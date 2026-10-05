@@ -29,31 +29,43 @@ pub fn pgquant_rolling_vol(
     let mut results = Vec::new();
     let mut current_symbol = String::new();
     let mut window_vals: VecDeque<f64> = VecDeque::new();
-    let mut sum = 0.0;
-    let mut sum_sq = 0.0;
+    let mut mean = 0.0;
+    let mut m2 = 0.0;
 
     for (sym, date, val) in timeseries {
         if sym != current_symbol {
             current_symbol = sym.clone();
             window_vals.clear();
-            sum = 0.0;
-            sum_sq = 0.0;
+            mean = 0.0;
+            m2 = 0.0;
         }
 
-        window_vals.push_back(val);
-        sum += val;
-        sum_sq += val * val;
+        if window_vals.len() < window as usize {
+            window_vals.push_back(val);
+            let old_mean = mean;
+            mean += (val - old_mean) / window_vals.len() as f64;
+            m2 += (val - old_mean) * (val - mean);
 
-        if window_vals.len() > window as usize {
-            let removed = window_vals.pop_front().unwrap();
-            sum -= removed;
-            sum_sq -= removed * removed;
-        }
+            if window_vals.len() == window as usize {
+                let n = window as f64;
+                let mut variance = m2 / (n - 1.0);
+                if variance < 0.0 {
+                    variance = 0.0;
+                }
+                let vol = variance.sqrt();
+                results.push((sym, date, vol));
+            }
+        } else {
+            let x_old = window_vals.pop_front().unwrap();
+            let x_new = val;
+            window_vals.push_back(val);
 
-        if window_vals.len() == window as usize {
+            let old_mean = mean;
+            mean += (x_new - x_old) / window as f64;
+            m2 += (x_new - old_mean) * (x_new - mean) - (x_old - old_mean) * (x_old - mean);
+
             let n = window as f64;
-            // sample variance
-            let mut variance = (sum_sq - (sum * sum) / n) / (n - 1.0);
+            let mut variance = m2 / (n - 1.0);
             if variance < 0.0 {
                 variance = 0.0;
             }

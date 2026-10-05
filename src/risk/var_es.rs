@@ -9,9 +9,6 @@ pub fn pgquant_var_historical(mut returns: Vec<f64>, confidence: f64) -> f64 {
         return 0.0;
     }
 
-    // Sort returns ascending (worst losses first)
-    returns.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
     let alpha = 1.0 - confidence;
     let mut index = (alpha * returns.len() as f64).round() as usize;
     if index == 0 {
@@ -19,7 +16,11 @@ pub fn pgquant_var_historical(mut returns: Vec<f64>, confidence: f64) -> f64 {
     }
     let index = index.min(returns.len()) - 1;
 
-    -returns[index]
+    let (_, &mut var_threshold, _) = returns.select_nth_unstable_by(index, |a, b| {
+        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    -var_threshold
 }
 
 /// Computes the historical Expected Shortfall (ES) / CVaR.
@@ -31,8 +32,6 @@ pub fn pgquant_es_historical(mut returns: Vec<f64>, confidence: f64) -> f64 {
         return 0.0;
     }
 
-    returns.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
     let alpha = 1.0 - confidence;
     let mut index = (alpha * returns.len() as f64).round() as usize;
     if index == 0 {
@@ -40,19 +39,20 @@ pub fn pgquant_es_historical(mut returns: Vec<f64>, confidence: f64) -> f64 {
     }
     let index = index.min(returns.len()) - 1;
 
-    let var_threshold = returns[index];
+    let (left, &mut var_threshold, _) = returns.select_nth_unstable_by(index, |a, b| {
+        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-    let tail_returns: Vec<f64> = returns
-        .into_iter()
-        .filter(|&r| r <= var_threshold)
-        .collect();
-
-    if tail_returns.is_empty() {
+    // The elements <= var_threshold are in `left` and the `var_threshold` itself.
+    // So there are exactly `index + 1` elements in the tail.
+    let tail_len = index + 1;
+    if tail_len == 0 {
         return 0.0;
     }
 
-    let sum: f64 = tail_returns.iter().sum();
-    let avg = sum / tail_returns.len() as f64;
+    let left_sum: f64 = left.iter().sum();
+    let total_sum = left_sum + var_threshold;
+    let avg = total_sum / (tail_len as f64);
 
     -avg
 }

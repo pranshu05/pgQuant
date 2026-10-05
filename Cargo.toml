@@ -1,6 +1,6 @@
 [package]
 name = "pgquant"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 license = "MIT"
 description = "pgQuant - the quant toolkit Postgres never had"
@@ -32,6 +32,7 @@ argmin-math = "=0.4.0"    # Phase 3+: math backend for argmin
 
 
 [dev-dependencies]
+criterion = "0.5"
 pgrx-tests = "=0.12.9"
 
 [profile.dev]
@@ -42,3 +43,8 @@ panic = "unwind"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+
+[[bench]]
+name = "cov_benchmark"
+harness = false
