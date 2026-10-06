@@ -34,3 +34,13 @@ Constructs the Fama-French HML (High Minus Low) factor return. It uses the exact
 
 - **Arguments:** Same as `pgquant_construct_smb`.
 - **Returns:** A table of `(date DATE, hml_return DOUBLE PRECISION)`.
+
+### `pgquant_construct_wml(query TEXT)`
+Constructs the WML (Winners Minus Losers) momentum factor return. Similar to SMB and HML, it operates on a double-sort panel (Size and Momentum).
+
+- **Arguments:**
+  - `query`: A SQL query returning exactly `(symbol TEXT, date DATE, return DOUBLE PRECISION, size_bucket INT, mom_bucket INT, weight DOUBLE PRECISION)`.
+    - `size_bucket`: 1 (Small) or 2 (Big).
+    - `mom_bucket`: 1 (Losers), 2 (Neutral), or 3 (Winners).
+    - `weight`: The weight of the asset in the bucket (e.g. market cap for value-weighted, or `1.0` for equal-weighted).
+- **Returns:** A table of `(date DATE, wml_return DOUBLE PRECISION)`.

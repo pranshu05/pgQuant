@@ -185,6 +185,27 @@ pub fn pgquant_construct_ff_factors(
     Ok(TableIterator::new(results))
 }
 
+/// Constructs the Fama-French WML (Momentum) factor return from a double-sort panel.
+/// Query must return (symbol TEXT, date DATE, return FLOAT, size_bucket INT, mom_bucket INT, weight FLOAT)
+/// Momentum buckets should be 1 (Losers), 2 (Neutral), 3 (Winners).
+#[pg_extern]
+pub fn pgquant_construct_wml(
+    query: &str,
+) -> Result<
+    TableIterator<'static, (name!(date, pgrx::datum::Date), name!(wml_return, f64))>,
+    pgrx::spi::Error,
+> {
+    let data = crate::spi_helpers::fetch_factor_panel(query)?;
+    let factors = calculate_daily_factor_returns(&data);
+
+    let mut results = Vec::new();
+    for (date, (_, wml)) in factors {
+        results.push((date, wml));
+    }
+
+    Ok(TableIterator::new(results))
+}
+
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
@@ -249,5 +270,33 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert!((rows[0].1 - 0.0133333333333333).abs() < 1e-6);
         assert!((rows[0].2 - 0.075).abs() < 1e-6);
+    }
+
+    #[pg_test]
+    fn test_pgquant_construct_wml() {
+        Spi::run("CREATE TEMP TABLE wml_test (symbol text, date date, ret double precision, size int, mom int, weight double precision);").unwrap();
+        // SL: A, SN: B, SW: C
+        // BL: D, BN: E, BW: F
+        Spi::run(
+            "INSERT INTO wml_test VALUES 
+            ('A', '2026-01-01', 0.10, 1, 1, 1.0),
+            ('B', '2026-01-01', 0.05, 1, 2, 1.0),
+            ('C', '2026-01-01', 0.02, 1, 3, 1.0),
+            ('D', '2026-01-01', 0.08, 2, 1, 1.0),
+            ('E', '2026-01-01', 0.04, 2, 2, 1.0),
+            ('F', '2026-01-01', 0.01, 2, 3, 1.0)
+        ;",
+        )
+        .unwrap();
+
+        let query = "SELECT symbol, date, ret, size, mom, weight FROM wml_test";
+        let result = pgquant_construct_wml(query).unwrap();
+        let rows: Vec<_> = result.collect();
+        assert_eq!(rows.len(), 1);
+
+        // Winners = (0.02 + 0.01)/2 = 0.015
+        // Losers = (0.10 + 0.08)/2 = 0.09
+        // WML = Winners - Losers = 0.015 - 0.09 = -0.075
+        assert!((rows[0].1 - (-0.075)).abs() < 1e-6);
     }
 }
