@@ -45,14 +45,72 @@ fn calculate_daily_factor_returns(
             }
         }
 
-        // Fama-French formulations
-        // SMB = 1/3 (SV + SN + SG) - 1/3 (BV + BN + BG)
-        let smb = (p_ret[0][0] + p_ret[0][1] + p_ret[0][2]) / 3.0
-            - (p_ret[1][0] + p_ret[1][1] + p_ret[1][2]) / 3.0;
+        // Fama-French formulations with missing bucket compensation
+        // SMB: Small (size 0) vs Big (size 1)
+        let mut small_sum = 0.0;
+        let mut small_count = 0.0;
+        for b in 0..3 {
+            if weights[0][b] > 0.0 {
+                small_sum += p_ret[0][b];
+                small_count += 1.0;
+            }
+        }
+        let small_avg = if small_count > 0.0 {
+            small_sum / small_count
+        } else {
+            0.0
+        };
 
-        // HML = 1/2 (SV + BV) - 1/2 (SG + BG)
-        // Note: Growth is bucket 1, Neutral is bucket 2, Value is bucket 3
-        let hml = (p_ret[0][2] + p_ret[1][2]) / 2.0 - (p_ret[0][0] + p_ret[1][0]) / 2.0;
+        let mut big_sum = 0.0;
+        let mut big_count = 0.0;
+        for b in 0..3 {
+            if weights[1][b] > 0.0 {
+                big_sum += p_ret[1][b];
+                big_count += 1.0;
+            }
+        }
+        let big_avg = if big_count > 0.0 {
+            big_sum / big_count
+        } else {
+            0.0
+        };
+
+        let smb = small_avg - big_avg;
+
+        // HML: Value (btm 2) vs Growth (btm 0)
+        let mut value_sum = 0.0;
+        let mut value_count = 0.0;
+        if weights[0][2] > 0.0 {
+            value_sum += p_ret[0][2];
+            value_count += 1.0;
+        }
+        if weights[1][2] > 0.0 {
+            value_sum += p_ret[1][2];
+            value_count += 1.0;
+        }
+        let value_avg = if value_count > 0.0 {
+            value_sum / value_count
+        } else {
+            0.0
+        };
+
+        let mut growth_sum = 0.0;
+        let mut growth_count = 0.0;
+        if weights[0][0] > 0.0 {
+            growth_sum += p_ret[0][0];
+            growth_count += 1.0;
+        }
+        if weights[1][0] > 0.0 {
+            growth_sum += p_ret[1][0];
+            growth_count += 1.0;
+        }
+        let growth_avg = if growth_count > 0.0 {
+            growth_sum / growth_count
+        } else {
+            0.0
+        };
+
+        let hml = value_avg - growth_avg;
 
         factors.insert(date, (smb, hml));
     }
@@ -100,6 +158,33 @@ pub fn pgquant_construct_hml(
     Ok(TableIterator::new(results))
 }
 
+/// Constructs both Fama-French SMB and HML factor returns in a single pass.
+/// Query must return (symbol TEXT, date DATE, return FLOAT, size_bucket INT, btm_bucket INT, weight FLOAT)
+#[pg_extern]
+pub fn pgquant_construct_ff_factors(
+    query: &str,
+) -> Result<
+    TableIterator<
+        'static,
+        (
+            name!(date, pgrx::datum::Date),
+            name!(smb_return, f64),
+            name!(hml_return, f64),
+        ),
+    >,
+    pgrx::spi::Error,
+> {
+    let data = crate::spi_helpers::fetch_factor_panel(query)?;
+    let factors = calculate_daily_factor_returns(&data);
+
+    let mut results = Vec::new();
+    for (date, (smb, hml)) in factors {
+        results.push((date, smb, hml));
+    }
+
+    Ok(TableIterator::new(results))
+}
+
 #[cfg(any(test, feature = "pg_test"))]
 #[pg_schema]
 mod tests {
@@ -141,5 +226,28 @@ mod tests {
         // Growth = (0.02 + 0.01)/2 = 0.015
         // HML = 0.09 - 0.015 = 0.075
         assert!((hml_rows[0].1 - 0.075).abs() < 1e-6);
+    }
+
+    #[pg_test]
+    fn test_pgquant_construct_ff_factors() {
+        Spi::run("CREATE TEMP TABLE ff_test_multi (symbol text, date date, ret double precision, size int, btm int, weight double precision);").unwrap();
+        Spi::run(
+            "INSERT INTO ff_test_multi VALUES 
+            ('A', '2026-01-01', 0.10, 1, 3, 1.0),
+            ('B', '2026-01-01', 0.05, 1, 2, 1.0),
+            ('C', '2026-01-01', 0.02, 1, 1, 1.0),
+            ('D', '2026-01-01', 0.08, 2, 3, 1.0),
+            ('E', '2026-01-01', 0.04, 2, 2, 1.0),
+            ('F', '2026-01-01', 0.01, 2, 1, 1.0)
+        ;",
+        )
+        .unwrap();
+
+        let query = "SELECT symbol, date, ret, size, btm, weight FROM ff_test_multi";
+        let result = pgquant_construct_ff_factors(query).unwrap();
+        let rows: Vec<_> = result.collect();
+        assert_eq!(rows.len(), 1);
+        assert!((rows[0].1 - 0.0133333333333333).abs() < 1e-6);
+        assert!((rows[0].2 - 0.075).abs() < 1e-6);
     }
 }
