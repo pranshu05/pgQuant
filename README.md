@@ -55,8 +55,21 @@ Rather than owning a schema, `pgQuant` is designed to be flexible. Functions acc
 
 ## Installation
 
-### 1. Pre-Compiled Release (Recommended)
-You can download the pre-compiled binary for your specific PostgreSQL version directly from the [GitHub Releases](https://github.com/pranshu05/pgQuant/releases) page.
+### 1. One-Line Installation (Recommended)
+
+The easiest way to install pgQuant is to use our installation script. It will automatically detect your PostgreSQL version, download the correct pre-compiled binary from GitHub, and install it to the correct paths.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pranshu05/pgQuant/main/install.sh | bash
+```
+
+Once installed, connect to your PostgreSQL database and enable the extension:
+```sql
+CREATE EXTENSION pgquant;
+```
+
+### 2. Manual Pre-Compiled Installation
+You can also manually download the pre-compiled binary for your specific PostgreSQL version directly from the [GitHub Releases](https://github.com/pranshu05/pgQuant/releases) page.
 
 1. Download the ZIP file for your PostgreSQL version (e.g., `pgquant-v0.1.2-pg14-linux-amd64.zip`).
 2. Unzip the file:
