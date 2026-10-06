@@ -1,5 +1,5 @@
-use pgrx::prelude::*;
 use crate::mle::optimize_mle_1d;
+use pgrx::prelude::*;
 
 /// Computes the Exponentially Weighted Moving Average (EWMA) volatility series.
 /// Given an array of returns and a decay factor lambda (e.g., 0.94 for RiskMetrics).
@@ -17,11 +17,15 @@ pub fn pgquant_ewma_vol(returns: Vec<f64>, lambda: f64) -> Vec<f64> {
     // Initialize with sample variance of the provided series
     // If n=1, use return^2
     let initial_var = if returns.len() > 1 {
-        let n = returns.len() as f64;
-        let sum: f64 = returns.iter().sum();
-        let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-        let var = (sum_sq - (sum * sum) / n) / (n - 1.0);
-        var
+        let mut mean = 0.0;
+        let mut m2 = 0.0;
+        for (i, &r) in returns.iter().enumerate() {
+            let n_f = i as f64 + 1.0;
+            let delta = r - mean;
+            mean += delta / n_f;
+            m2 += delta * (r - mean);
+        }
+        m2 / (returns.len() as f64 - 1.0)
     } else {
         returns[0] * returns[0]
     };
@@ -46,14 +50,19 @@ pub fn pgquant_ewma_lambda_mle(returns: Vec<f64>) -> f64 {
         pgrx::error!("Need at least 3 observations for lambda estimation");
     }
 
-    // Initialize variance as sample variance of all returns
-    let n = returns.len() as f64;
-    let sum: f64 = returns.iter().sum();
-    let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-    let initial_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+    // Initialize variance as sample variance of all returns using Welford's algorithm
+    let mut mean = 0.0;
+    let mut m2 = 0.0;
+    for (i, &r) in returns.iter().enumerate() {
+        let n_f = i as f64 + 1.0;
+        let delta = r - mean;
+        mean += delta / n_f;
+        m2 += delta * (r - mean);
+    }
+    let initial_var = m2 / (returns.len() as f64 - 1.0);
 
     let init_state = |_lambda| Some(initial_var);
-    
+
     let ll_obs = |current_var: &mut f64, r: f64, lambda: f64| -> f64 {
         if *current_var <= 0.0 {
             *current_var = 1e-12;
@@ -167,24 +176,37 @@ mod tests {
 
         let est = pgquant_ewma_lambda_mle(returns.clone());
         let ll_obs = |current_var: &mut f64, r: f64, lambda: f64| -> f64 {
-            if *current_var <= 0.0 { *current_var = 1e-12; }
+            if *current_var <= 0.0 {
+                *current_var = 1e-12;
+            }
             let ll = -0.5 * (current_var.ln() + (r * r) / *current_var);
             *current_var = lambda * *current_var + (1.0 - lambda) * (r * r);
             ll
         };
-        let n = returns.len() as f64;
-        let sum: f64 = returns.iter().sum();
-        let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-        let initial_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+        let mut mean = 0.0;
+        let mut m2 = 0.0;
+        for (i, &r) in returns.iter().enumerate() {
+            let n_f = i as f64 + 1.0;
+            let delta = r - mean;
+            mean += delta / n_f;
+            m2 += delta * (r - mean);
+        }
+        let initial_var = m2 / (returns.len() as f64 - 1.0);
         let mut nll_est = 0.0;
         let mut state_est = initial_var;
-        for &r in &returns { nll_est -= ll_obs(&mut state_est, r, est); }
+        for &r in &returns {
+            nll_est -= ll_obs(&mut state_est, r, est);
+        }
         let mut nll_low = 0.0;
         let mut state_low = initial_var;
-        for &r in &returns { nll_low -= ll_obs(&mut state_low, r, 0.05); }
+        for &r in &returns {
+            nll_low -= ll_obs(&mut state_low, r, 0.05);
+        }
         let mut nll_high = 0.0;
         let mut state_high = initial_var;
-        for &r in &returns { nll_high -= ll_obs(&mut state_high, r, 0.999); }
+        for &r in &returns {
+            nll_high -= ll_obs(&mut state_high, r, 0.999);
+        }
 
         assert!(
             nll_est <= nll_low,

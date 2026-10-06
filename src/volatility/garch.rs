@@ -22,10 +22,15 @@ pub fn pgquant_garch11_normal(
         pgrx::error!("Need at least 10 observations for GARCH(1,1) estimation");
     }
 
-    let n = returns.len() as f64;
-    let sum: f64 = returns.iter().sum();
-    let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-    let sample_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+    let mut mean = 0.0;
+    let mut m2 = 0.0;
+    for (i, &r) in returns.iter().enumerate() {
+        let n_f = i as f64 + 1.0;
+        let delta = r - mean;
+        mean += delta / n_f;
+        m2 += delta * (r - mean);
+    }
+    let sample_var = m2 / (returns.len() as f64 - 1.0);
 
     let init_state = |p: &[f64]| {
         let omega = p[0];
@@ -94,10 +99,15 @@ pub fn pgquant_garch11_t(
         pgrx::error!("Need at least 10 observations for GARCH(1,1) estimation");
     }
 
-    let n = returns.len() as f64;
-    let sum: f64 = returns.iter().sum();
-    let sum_sq: f64 = returns.iter().map(|r| r * r).sum();
-    let sample_var = (sum_sq - (sum * sum) / n) / (n - 1.0);
+    let mut mean = 0.0;
+    let mut m2 = 0.0;
+    for (i, &r) in returns.iter().enumerate() {
+        let n_f = i as f64 + 1.0;
+        let delta = r - mean;
+        mean += delta / n_f;
+        m2 += delta * (r - mean);
+    }
+    let sample_var = m2 / (returns.len() as f64 - 1.0);
 
     let init_state = |p: &[f64]| {
         let omega = p[0];
