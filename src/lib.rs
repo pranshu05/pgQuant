@@ -6,6 +6,7 @@ use pgrx::prelude::*;
 pub mod covariance;
 pub mod factors;
 pub mod mle;
+pub mod optimization;
 pub mod returns;
 pub mod risk;
 pub mod spi_helpers;

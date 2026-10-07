@@ -38,8 +38,11 @@ The inspiration for starting this project was the course I have taken currently,
   - Portfolio sort infrastructure (cross-sectional bucketing)
   - SMB, HML, and WML (momentum) factor construction
 
+- **[Portfolio Optimization (docs/optimization.md)](docs/optimization.md):**
+  - Unconstrained mean-variance analytical optimization
+
 **Planned Features (WIP):**
-- **Portfolio Optimization:** Unconstrained and constrained (long-only) mean-variance optimization.
+- **Portfolio Optimization:** Constrained (long-only) mean-variance optimization (Quadratic Programming).
 
 ## Data Access Convention
 
