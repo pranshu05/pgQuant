@@ -41,26 +41,30 @@ jobs:
               if: env.SKIP_RELEASE == 'false'
               uses: dtolnay/rust-toolchain@stable
 
-            - name: Cache cargo registry and pgrx
+            - name: Rust Cache
               if: env.SKIP_RELEASE == 'false'
+              uses: Swatinem/rust-cache@v2
+
+            - name: Cache pgrx and cargo-pgrx
+              if: env.SKIP_RELEASE == 'false'
+              id: pgrx-cache
               uses: actions/cache@v4
               with:
                   path: |
-                      ~/.cargo/registry
-                      ~/.cargo/git
+                      ~/.cargo/bin/cargo-pgrx
                       ~/.pgrx
-                  key: ${{ runner.os }}-cargo-pgrx-0.12.9-${{ hashFiles('**/Cargo.toml') }}
+                  key: ${{ runner.os }}-pgrx-0.12.9
 
             - name: Install system dependencies
               if: env.SKIP_RELEASE == 'false'
               run: sudo apt-get update && sudo apt-get install -y libreadline-dev zlib1g-dev flex bison libssl-dev libclang-dev
 
             - name: Install cargo-pgrx
-              if: env.SKIP_RELEASE == 'false'
+              if: env.SKIP_RELEASE == 'false' && steps.pgrx-cache.outputs.cache-hit != 'true'
               run: cargo install --locked cargo-pgrx --version "=0.12.9"
 
             - name: Initialize pgrx
-              if: env.SKIP_RELEASE == 'false'
+              if: env.SKIP_RELEASE == 'false' && steps.pgrx-cache.outputs.cache-hit != 'true'
               run: cargo pgrx init
 
             - name: Build and Package for PG14, PG15, PG16, PG17
