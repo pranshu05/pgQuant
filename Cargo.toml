@@ -1,6 +1,6 @@
 [package]
 name = "pgquant"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 description = "pgQuant - the quant toolkit Postgres never had"
@@ -29,6 +29,7 @@ nalgebra = "=0.33.2"     # Phase 4+: matrix ops for covariance/optimization
 statrs = "=0.18.0"       # Phase 2+: Normal/Student-t distributions for VaR
 argmin = "=0.10.0"        # Phase 3+: MLE fitting for GARCH/EWMA
 argmin-math = "=0.4.0"    # Phase 3+: math backend for argmin
+clarabel = "0.11.1"
 
 
 [dev-dependencies]
