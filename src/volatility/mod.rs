@@ -1,3 +1,3 @@
 pub mod ewma;
-pub mod rolling;
 pub mod garch;
+pub mod rolling;

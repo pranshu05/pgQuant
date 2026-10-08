@@ -40,9 +40,10 @@ The inspiration for starting this project was the course I have taken currently,
 
 - **[Portfolio Optimization (docs/optimization.md)](docs/optimization.md):**
   - Unconstrained mean-variance analytical optimization
+  - Constrained (long-only) mean-variance optimization (Quadratic Programming)
 
 **Planned Features (WIP):**
-- **Portfolio Optimization:** Constrained (long-only) mean-variance optimization (Quadratic Programming).
+- **Black-Litterman Model Integration:** Combine market equilibrium returns with subjective investor views to produce stable expected returns.
 
 ## Data Access Convention
 
