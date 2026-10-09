@@ -42,9 +42,10 @@ The inspiration for starting this project was the course I have taken currently,
   - Unconstrained mean-variance analytical optimization
   - Constrained (long-only) mean-variance optimization (Quadratic Programming)
   - Black-Litterman Model Integration (posterior expected returns and covariance)
+  - Black-Litterman View Confidences (Idzorek's method for automatic $\Omega$ calibration)
 
 **Planned Features (WIP):**
-- **Black-Litterman View Confidences:** Idzorek's method to automatically calibrate the uncertainty matrix ($\Omega$) from simple percentage confidence scores.
+- **Risk Parity Optimization:** Equal Risk Contribution (ERC) portfolio allocation.
 
 ## Data Access Convention
 
