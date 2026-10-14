@@ -43,9 +43,10 @@ The inspiration for starting this project was the course I have taken currently,
   - Constrained (long-only) mean-variance optimization (Quadratic Programming)
   - Black-Litterman Model Integration (posterior expected returns and covariance)
   - Black-Litterman View Confidences (Idzorek's method for automatic $\Omega$ calibration)
+  - Risk Parity (Equal Risk Contribution) portfolio optimization
 
 **Planned Features (WIP):**
-- **Risk Parity Optimization:** Equal Risk Contribution (ERC) portfolio allocation.
+- **Portfolio Risk Decomposition:** Marginal, component, and percentage risk contribution per asset.
 
 ## Data Access Convention
 

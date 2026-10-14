@@ -53,3 +53,48 @@ SELECT pgquant_bl_idzorek_omega(
 );
 ```
 **Returns**: `double precision[]` (A flattened KxK diagonal $\Omega$ matrix ready to be fed into `pgquant_black_litterman`).
+
+## Risk Parity (Equal Risk Contribution)
+
+Risk parity allocates capital such that the marginal risk contribution of each asset is equal, producing portfolios that are truly diversified by *risk* rather than by capital allocation.
+
+### `pgquant_risk_parity_optimize(cov_matrix FLOAT[])`
+
+Solves the nonlinear risk parity optimization problem:
+
+$$\min_w \sum_{i=1}^{N} \left( w_i (\Sigma w)_i - \frac{w^T \Sigma w}{N} \right)^2$$
+
+subject to $w_i \geq 0$ and $\sum_i w_i = 1$.
+
+- **Arguments:**
+  - `cov_matrix`: A flattened 1D array of the $N \times N$ covariance matrix (row-major).
+- **Returns:** A 1D array (`DOUBLE PRECISION[]`) containing the risk parity weights.
+
+**How it works:** Internally, the optimizer uses a softmax reparameterization to convert the constrained problem into an unconstrained one. Portfolio weights are expressed as $w_i = \exp(y_i) / \sum_j \exp(y_j)$, which guarantees positivity and sum-to-one. Nelder-Mead then minimizes the sum of squared deviations of risk contributions from the target (equal) budget.
+
+```sql
+-- 3-asset risk parity portfolio
+SELECT pgquant_risk_parity_optimize(
+    ARRAY[
+        0.04, 0.006, 0.002,
+        0.006, 0.09, 0.009,
+        0.002, 0.009, 0.01
+    ]
+);
+
+-- End-to-end: compute covariance from returns, then find risk parity weights
+WITH cov AS (
+    SELECT pgquant_sample_cov(
+        'SELECT symbol, date, return FROM daily_returns ORDER BY symbol, date',
+        ARRAY['AAPL', 'MSFT', 'GOOG']
+    ) AS matrix
+)
+SELECT pgquant_risk_parity_optimize(matrix) FROM cov;
+```
+
+**Key properties:**
+- Higher-variance assets receive lower weights
+- Each asset contributes equally to total portfolio risk
+- For uncorrelated assets, weights are proportional to $1/\sigma_i$
+- The optimizer initializes from the inverse-volatility heuristic and converges to machine precision
+
