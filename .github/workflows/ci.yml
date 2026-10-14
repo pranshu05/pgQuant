@@ -25,17 +25,25 @@ jobs:
               with:
                   path: |
                       ~/.cargo/bin/cargo-pgrx
-                      ~/.pgrx
-                  key: ${{ runner.os }}-pgrx-0.12.9-${{ matrix.pg-version }}
+                      ~/.pgrx/config.toml
+                      ~/.pgrx/${{ matrix.pg-version }}*
+                  key: ${{ runner.os }}-pgrx-0.12.9-${{ matrix.pg-version }}-v2
             - name: Install pgrx dependencies
               run: |
                   sudo apt-get update
                   sudo apt-get install -y libclang-dev build-essential libreadline-dev zlib1g-dev flex bison libssl-dev pkg-config
             - name: Install cargo-pgrx
-              if: steps.pgrx-cache.outputs.cache-hit != 'true'
-              run: cargo install cargo-pgrx --version "=0.12.9" --locked
+              run: |
+                  if ! command -v cargo-pgrx &> /dev/null; then
+                    cargo install cargo-pgrx --version "=0.12.9" --locked
+                  fi
             - name: Initialize pgrx
-              if: steps.pgrx-cache.outputs.cache-hit != 'true'
-              run: cargo pgrx init --pg${{ matrix.pg-version }} download
+              run: |
+                  if [ ! -f "$HOME/.pgrx/config.toml" ] || ! grep -q "pg${{ matrix.pg-version }}" "$HOME/.pgrx/config.toml"; then
+                    cargo pgrx init --pg${{ matrix.pg-version }} download
+                  fi
             - name: Test
-              run: cargo pgrx test pg${{ matrix.pg-version }}
+              run: |
+                  rm -rf ~/.pgrx/data-*
+                  cargo pgrx test pg${{ matrix.pg-version }}
+                  rm -rf ~/.pgrx/data-*
