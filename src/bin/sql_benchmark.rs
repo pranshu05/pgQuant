@@ -61,7 +61,8 @@ fn main() {
         let date = start_date + chrono::Duration::days(day as i64);
         for &sym in &symbols {
             let ret: f64 = rng.gen_range(-0.05..0.05);
-            tx.execute(&insert_stmt, &[&sym, &date, &ret])
+            let date_str = date.to_string();
+            tx.execute(&insert_stmt, &[&sym, &date_str, &ret])
                 .expect("insert failed");
         }
     }
