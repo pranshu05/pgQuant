@@ -13,6 +13,10 @@ crate-type = ["cdylib", "lib"]
 name = "pgrx_embed_pgquant"
 path = "./src/bin/pgrx_embed.rs"
 
+[[bin]]
+name = "sql_benchmark"
+path = "./src/bin/sql_benchmark.rs"
+
 [features]
 default = ["pg14"]
 pg14 = ["pgrx/pg14", "pgrx-tests/pg14"]
@@ -29,7 +33,9 @@ nalgebra = "=0.33.2"     # Phase 4+: matrix ops for covariance/optimization
 statrs = "=0.18.0"       # Phase 2+: Normal/Student-t distributions for VaR
 argmin = "=0.10.0"        # Phase 3+: MLE fitting for GARCH/EWMA
 argmin-math = "=0.4.0"    # Phase 3+: math backend for argmin
-clarabel = "0.11.1"
+postgres = "0.19"
+rand = "0.8"
+chrono = "0.4"
 
 
 [dev-dependencies]

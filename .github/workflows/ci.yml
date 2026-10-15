@@ -16,34 +16,46 @@ jobs:
             - uses: actions/checkout@v4
             - name: Install Rust
               uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
+            - name: Cache cargo-pgrx
+              id: cache-cargo-pgrx
+              uses: actions/cache@v4
               with:
-                key: pg${{ matrix.pg-version }}
-            - name: Cache pgrx and cargo-pgrx
-              id: pgrx-cache
+                  path: ~/.cargo/bin/cargo-pgrx
+                  key: ${{ runner.os }}-cargo-pgrx-0.12.9
+
+            - name: Cache Cargo registry
               uses: actions/cache@v4
               with:
                   path: |
-                      ~/.cargo/bin/cargo-pgrx
-                      ~/.pgrx/config.toml
-                      ~/.pgrx/${{ matrix.pg-version }}*
-                  key: ${{ runner.os }}-pgrx-0.12.9-${{ matrix.pg-version }}-v2
+                      ~/.cargo/registry/index/
+                      ~/.cargo/registry/cache/
+                      ~/.cargo/git/db/
+                  key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-registry-
+
             - name: Install pgrx dependencies
               run: |
                   sudo apt-get update
                   sudo apt-get install -y libclang-dev build-essential libreadline-dev zlib1g-dev flex bison libssl-dev pkg-config
+
             - name: Install cargo-pgrx
-              run: |
-                  if ! command -v cargo-pgrx &> /dev/null; then
-                    cargo install cargo-pgrx --version "=0.12.9" --locked
-                  fi
+              if: steps.cache-cargo-pgrx.outputs.cache-hit != 'true'
+              run: cargo install cargo-pgrx --version "=0.12.9" --locked
+
             - name: Initialize pgrx
-              run: |
-                  if [ ! -f "$HOME/.pgrx/config.toml" ] || ! grep -q "pg${{ matrix.pg-version }}" "$HOME/.pgrx/config.toml"; then
-                    cargo pgrx init --pg${{ matrix.pg-version }} download
-                  fi
+              run: cargo pgrx init --pg${{ matrix.pg-version }} download
+
             - name: Test
-              run: |
-                  rm -rf ~/.pgrx/data-*
-                  cargo pgrx test pg${{ matrix.pg-version }}
-                  rm -rf ~/.pgrx/data-*
+              run: cargo pgrx test pg${{ matrix.pg-version }}
+            - name: Build benchmark binary
+              run: cargo build --release --bin sql_benchmark
+            - name: Make benchmark script executable
+              run: chmod +x ./scripts/run_benchmarks.sh
+            - name: Run benchmarks and generate report
+              run: ./scripts/run_benchmarks.sh
+            - name: Upload benchmark artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                name: benchmark-report-${{ matrix.pg-version }}
+                path: benchmark_results
