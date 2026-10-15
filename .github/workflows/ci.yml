@@ -48,14 +48,22 @@ jobs:
 
             - name: Test
               run: cargo pgrx test pg${{ matrix.pg-version }}
+
             - name: Build benchmark binary
-              run: cargo build --release --bin sql_benchmark
-            - name: Make benchmark script executable
-              run: chmod +x ./scripts/run_benchmarks.sh
-            - name: Run benchmarks and generate report
-              run: ./scripts/run_benchmarks.sh
+              run: cargo build --release --bin sql_benchmark --no-default-features --features pg${{ matrix.pg-version }}
+
+            - name: Run benchmark pipeline
+              env:
+                  PG_VER: pg${{ matrix.pg-version }}
+                  NUM_ROWS: "10000"
+              run: |
+                  chmod +x ./scripts/run_benchmarks.sh
+                  ./scripts/run_benchmarks.sh
+
             - name: Upload benchmark artifacts
+              if: always()
               uses: actions/upload-artifact@v4
               with:
-                name: benchmark-report-${{ matrix.pg-version }}
-                path: benchmark_results
+                  name: benchmark-report-pg${{ matrix.pg-version }}
+                  path: benchmark_results/
+                  retention-days: 30

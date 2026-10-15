@@ -1,8 +1,8 @@
+use postgres::{Client, NoTls};
+use rand::Rng;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
-use rand::Rng;
-use postgres::{Client, NoTls, Config};
 
 fn main() {
     // Determine PostgreSQL version from env or default to 15
@@ -23,7 +23,10 @@ fn main() {
 
     // Connect
     let mut client = loop {
-        match Client::connect(&format!("host=localhost port={} user=postgres", port), NoTls) {
+        match Client::connect(
+            &format!("host=localhost port={} user=postgres", port),
+            NoTls,
+        ) {
             Ok(c) => break c,
             Err(_) => {
                 thread::sleep(Duration::from_secs(1));
@@ -40,8 +43,8 @@ fn main() {
     // Create a temporary table with synthetic data
     client
         .batch_execute(
-            "DROP TABLE IF EXISTS bench_prices;\n"
-                + "CREATE TEMP TABLE bench_prices (symbol TEXT, date DATE, ret DOUBLE PRECISION);",
+            "DROP TABLE IF EXISTS bench_prices;\
+             CREATE TEMP TABLE bench_prices (symbol TEXT, date DATE, ret DOUBLE PRECISION);",
         )
         .expect("Failed to create temp table");
 
@@ -50,7 +53,9 @@ fn main() {
     let start_date = chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
     let num_days = 20000; // rows = symbols * days = 100k
     let mut rng = rand::thread_rng();
-    let mut insert_stmt = client.prepare("INSERT INTO bench_prices VALUES ($1, $2, $3)")?.into_statement();
+    let insert_stmt = client
+        .prepare("INSERT INTO bench_prices VALUES ($1, $2, $3)")
+        .expect("Failed to prepare insert");
     let mut tx = client.transaction().expect("failed tx");
     for day in 0..num_days {
         let date = start_date + chrono::Duration::days(day as i64);
@@ -65,19 +70,33 @@ fn main() {
 
     // Benchmark pgquant_sample_cov
     let query = "SELECT symbol, date, ret FROM bench_prices ORDER BY date, symbol";
-    let sql = format!("SELECT * FROM pgquant_sample_cov('{}')", query.replace('"', "\""););
+    let sql = format!(
+        "SELECT * FROM pgquant_sample_cov('{}')",
+        query.replace('\'', "''")
+    );
 
     let start = Instant::now();
-    let rows = client.query(&sql, &[]).expect("benchmark query failed");
+    let rows = client.query(&*sql, &[]).expect("benchmark query failed");
     let duration = start.elapsed();
-    println!("pgquant_sample_cov returned {} rows in {:.2?}", rows.len(), duration);
+    println!(
+        "pgquant_sample_cov returned {} rows in {:.2?}",
+        rows.len(),
+        duration
+    );
 
     // Benchmark shrinkage
-    let sql2 = format!("SELECT * FROM pgquant_shrinkage_cov_lw('{}')", query.replace('"', "\""););
+    let sql2 = format!(
+        "SELECT * FROM pgquant_shrinkage_cov_lw('{}')",
+        query.replace('\'', "''")
+    );
     let start2 = Instant::now();
-    let rows2 = client.query(&sql2, &[]).expect("shrinkage query failed");
+    let rows2 = client.query(&*sql2, &[]).expect("shrinkage query failed");
     let duration2 = start2.elapsed();
-    println!("pgquant_shrinkage_cov_lw returned {} rows in {:.2?}", rows2.len(), duration2);
+    println!(
+        "pgquant_shrinkage_cov_lw returned {} rows in {:.2?}",
+        rows2.len(),
+        duration2
+    );
 
     // Shut down PostgreSQL
     println!("Shutting down PostgreSQL...");

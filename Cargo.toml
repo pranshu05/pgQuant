@@ -36,6 +36,7 @@ argmin-math = "=0.4.0"    # Phase 3+: math backend for argmin
 postgres = "0.19"
 rand = "0.8"
 chrono = "0.4"
+clarabel = "0.5"
 
 
 [dev-dependencies]
@@ -52,14 +53,3 @@ lto = "fat"
 codegen-units = 1
 
 
-[[bench]]
-name = "cov_benchmark"
-harness = false
-
-[[bench]]
-name = "var_es_benchmark"
-harness = false
-
-[[bench]]
-name = "rolling_benchmark"
-harness = false

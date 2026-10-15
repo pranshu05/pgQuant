@@ -99,8 +99,7 @@ pub fn pgquant_mv_optimize_constrained(
     let mut settings = DefaultSettings::default();
     settings.verbose = false;
 
-    let mut solver = DefaultSolver::new(&p_mat, &q, &a_mat, &b, &cones, settings)
-        .unwrap_or_else(|_| pgrx::error!("Failed to initialize Clarabel QP solver."));
+    let mut solver = DefaultSolver::new(&p_mat, &q, &a_mat, &b, &cones, settings);
 
     solver.solve();
 
