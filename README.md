@@ -44,9 +44,10 @@ The inspiration for starting this project was the course I have taken currently,
   - Black-Litterman Model Integration (posterior expected returns and covariance)
   - Black-Litterman View Confidences (Idzorek's method for automatic $\Omega$ calibration)
   - Risk Parity (Equal Risk Contribution) portfolio optimization
+  - Portfolio Risk Decomposition & Attribution (MRC, CRC, percentage contribution)
 
 **Planned Features (WIP):**
-- **Portfolio Risk Decomposition:** Marginal, component, and percentage risk contribution per asset.
+- **Cornish-Fisher VaR & ES:** Non-normal tail risk estimation using skewness and kurtosis adjustments.
 
 ## Data Access Convention
 

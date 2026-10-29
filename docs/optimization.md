@@ -98,3 +98,67 @@ SELECT pgquant_risk_parity_optimize(matrix) FROM cov;
 - For uncorrelated assets, weights are proportional to $1/\sigma_i$
 - The optimizer initializes from the inverse-volatility heuristic and converges to machine precision
 
+
+## Portfolio Risk Decomposition & Attribution
+
+After constructing any portfolio (mean-variance, risk parity, or custom), this function decomposes total portfolio risk into per-asset contributions.
+
+### `pgquant_risk_decomposition(weights FLOAT[], cov_matrix FLOAT[])`
+
+For a portfolio with weights $w$ and covariance matrix $\Sigma$:
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| **Portfolio Volatility** | $\sigma_p = \sqrt{w^T \Sigma w}$ | Total portfolio risk |
+| **Marginal Risk Contribution (MRC)** | $\text{MRC}_i = \frac{(\Sigma w)_i}{\sigma_p}$ | How much an infinitesimal increase in $w_i$ increases $\sigma_p$ |
+| **Component Risk Contribution (CRC)** | $\text{CRC}_i = w_i \times \text{MRC}_i$ | Absolute contribution of asset $i$ to $\sigma_p$ |
+| **Percentage Contribution (PCT)** | $\text{PCT}_i = \frac{\text{CRC}_i}{\sigma_p}$ | Fraction of total risk attributable to asset $i$ |
+
+**Euler Identity:** By Euler's theorem for homogeneous functions, $\sum_i \text{CRC}_i = \sigma_p$ exactly.
+
+- **Arguments:**
+  - `weights`: A 1D array of portfolio weights (length $N$, must sum to 1.0).
+  - `cov_matrix`: A flattened 1D array of the $N \times N$ covariance matrix (row-major).
+- **Returns:** A set of rows with columns `(asset_index, weight, marginal_risk_contribution, component_risk_contribution, pct_risk_contribution, portfolio_volatility)`.
+
+```sql
+-- Basic 2-asset decomposition
+SELECT * FROM pgquant_risk_decomposition(
+    weights => ARRAY[0.6, 0.4],
+    cov_matrix => ARRAY[0.04, 0.015, 0.015, 0.09]
+);
+
+-- Verify Euler identity
+SELECT
+    SUM(component_risk_contribution) AS sum_crc,
+    MAX(portfolio_volatility) AS port_vol
+FROM pgquant_risk_decomposition(
+    ARRAY[0.6, 0.4],
+    ARRAY[0.04, 0.015, 0.015, 0.09]
+);
+-- sum_crc ≈ port_vol (exact equality to machine precision)
+
+-- Verify risk parity produces equal contributions
+WITH rp AS (
+    SELECT pgquant_risk_parity_optimize(
+        ARRAY[0.04, 0.006, 0.002, 0.006, 0.09, 0.009, 0.002, 0.009, 0.01]
+    ) AS weights
+)
+SELECT * FROM pgquant_risk_decomposition(
+    (SELECT weights FROM rp),
+    ARRAY[0.04, 0.006, 0.002, 0.006, 0.09, 0.009, 0.002, 0.009, 0.01]
+);
+-- All pct_risk_contribution values should be ≈ 0.333 (1/3)
+
+-- Find concentrated risk positions
+SELECT asset_index, pct_risk_contribution
+FROM pgquant_risk_decomposition(
+    ARRAY[0.25, 0.25, 0.25, 0.25],
+    ARRAY[0.04, 0.01, 0.005, 0.002,
+          0.01, 0.09, 0.008, 0.003,
+          0.005, 0.008, 0.01, 0.002,
+          0.002, 0.003, 0.002, 0.0064]
+)
+WHERE pct_risk_contribution > 0.30
+ORDER BY pct_risk_contribution DESC;
+```
