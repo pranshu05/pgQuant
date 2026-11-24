@@ -57,15 +57,17 @@ jobs:
 
             - name: Install system dependencies
               if: env.SKIP_RELEASE == 'false'
-              run: sudo apt-get update && sudo apt-get install -y libreadline-dev zlib1g-dev flex bison libssl-dev libclang-dev
+              run: sudo apt-get update && sudo apt-get install -y libreadline-dev zlib1g-dev flex bison libssl-dev libclang-dev pkg-config build-essential
 
             - name: Install cargo-pgrx
               if: env.SKIP_RELEASE == 'false' && steps.pgrx-cache.outputs.cache-hit != 'true'
-              run: cargo install --locked cargo-pgrx --version "=0.12.9"
+              run: cargo install cargo-pgrx --version "=0.12.9" --locked --force
 
             - name: Initialize pgrx
               if: env.SKIP_RELEASE == 'false' && steps.pgrx-cache.outputs.cache-hit != 'true'
-              run: cargo pgrx init
+              run: |
+                  cargo pgrx init --pg14 download --pg15 download --pg16 download --pg17 download
+                  rm -rf ~/.pgrx/data-*
 
             - name: Build and Package for PG14, PG15, PG16, PG17
               if: env.SKIP_RELEASE == 'false'

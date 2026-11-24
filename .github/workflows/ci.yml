@@ -33,9 +33,14 @@ jobs:
                   sudo apt-get install -y libclang-dev build-essential libreadline-dev zlib1g-dev flex bison libssl-dev pkg-config
             - name: Install cargo-pgrx
               if: steps.pgrx-cache.outputs.cache-hit != 'true'
-              run: cargo install cargo-pgrx --version "=0.12.9" --locked
+              run: cargo install cargo-pgrx --version "=0.12.9" --locked --force
             - name: Initialize pgrx
               if: steps.pgrx-cache.outputs.cache-hit != 'true'
               run: cargo pgrx init --pg${{ matrix.pg-version }} download
+            - name: Clean test cluster and stale pid files
+              run: |
+                  rm -rf target/test-pgdata ~/.pgrx/data-* /tmp/pgrx-test-data
             - name: Test
+              env:
+                  CARGO_PGRX_TEST_PGDATA: /tmp/pgrx-test-data
               run: cargo pgrx test pg${{ matrix.pg-version }}
