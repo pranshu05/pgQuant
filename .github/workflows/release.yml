@@ -11,7 +11,7 @@ on:
 
 jobs:
     build-and-release:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         permissions:
             contents: write
         steps:
@@ -53,7 +53,7 @@ jobs:
                   path: |
                       ~/.cargo/bin/cargo-pgrx
                       ~/.pgrx
-                  key: ${{ runner.os }}-pgrx-0.12.9
+                  key: ${{ runner.os }}-22.04-pgrx-0.12.9
 
             - name: Install system dependencies
               if: env.SKIP_RELEASE == 'false'

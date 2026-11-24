@@ -8,7 +8,7 @@ on:
 
 jobs:
     test:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         strategy:
             matrix:
                 pg-version: [15, 16, 17]
@@ -26,7 +26,7 @@ jobs:
                   path: |
                       ~/.cargo/bin/cargo-pgrx
                       ~/.pgrx
-                  key: ${{ runner.os }}-pgrx-0.12.9-${{ matrix.pg-version }}
+                  key: ${{ runner.os }}-22.04-pgrx-0.12.9-${{ matrix.pg-version }}
             - name: Install pgrx dependencies
               run: |
                   sudo apt-get update
