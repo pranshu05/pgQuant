@@ -56,12 +56,12 @@ pub fn pgquant_garch11_normal(
         ll
     };
 
-    let init_param = vec![sample_var * 0.05, 0.05, 0.90];
+    let init_param = vec![sample_var * 0.05, 0.05, 0.85];
     let initial_simplex = vec![
         init_param.clone(),
-        vec![sample_var * 0.1, 0.05, 0.90],
-        vec![sample_var * 0.05, 0.1, 0.90],
-        vec![sample_var * 0.05, 0.05, 0.85],
+        vec![sample_var * 0.1, 0.05, 0.85],
+        vec![sample_var * 0.05, 0.1, 0.85],
+        vec![sample_var * 0.05, 0.05, 0.90],
     ];
 
     let result = optimize_mle_nd(&returns, ll_obs, init_state, initial_simplex, 1000, 1e-6)
@@ -77,12 +77,7 @@ pub fn pgquant_garch11_normal(
     Ok(TableIterator::new(vec![(omega, alpha, beta, loglik)]))
 }
 
-/// Estimates GARCH(1,1) parameters (omega, alpha, beta, nu) and the final log-likelihood
-/// using MLE with Student-t innovations.
-#[pg_extern]
-pub fn pgquant_garch11_t(
-    returns: Vec<f64>,
-) -> Result<
+type Garch11TResult = Result<
     TableIterator<
         'static,
         (
@@ -94,7 +89,12 @@ pub fn pgquant_garch11_t(
         ),
     >,
     pgrx::spi::Error,
-> {
+>;
+
+/// Estimates GARCH(1,1) parameters (omega, alpha, beta, nu) and the final log-likelihood
+/// using MLE with Student-t innovations.
+#[pg_extern]
+pub fn pgquant_garch11_t(returns: Vec<f64>) -> Garch11TResult {
     if returns.len() < 10 {
         pgrx::error!("Need at least 10 observations for GARCH(1,1) estimation");
     }
@@ -149,13 +149,13 @@ pub fn pgquant_garch11_t(
         ll_t
     };
 
-    let init_param = vec![sample_var * 0.05, 0.05, 0.90, 5.0];
+    let init_param = vec![sample_var * 0.05, 0.05, 0.85, 5.0];
     let initial_simplex = vec![
         init_param.clone(),
-        vec![sample_var * 0.1, 0.05, 0.90, 5.0],
-        vec![sample_var * 0.05, 0.1, 0.90, 5.0],
-        vec![sample_var * 0.05, 0.05, 0.85, 5.0],
-        vec![sample_var * 0.05, 0.05, 0.90, 8.0],
+        vec![sample_var * 0.1, 0.05, 0.85, 5.0],
+        vec![sample_var * 0.05, 0.1, 0.85, 5.0],
+        vec![sample_var * 0.05, 0.05, 0.90, 5.0],
+        vec![sample_var * 0.05, 0.05, 0.85, 8.0],
     ];
 
     let result = optimize_mle_nd(&returns, ll_obs, init_state, initial_simplex, 2000, 1e-6)
@@ -171,7 +171,7 @@ pub fn pgquant_garch11_t(
 
     Ok(TableIterator::new(vec![(omega, alpha, beta, nu, loglik)]))
 }
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;
@@ -271,5 +271,62 @@ mod tests {
         assert!(beta >= 0.0);
         assert!(alpha + beta < 1.0);
         assert!(nu > 2.0);
+    }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    #[test]
+    fn test_garch11_initial_simplex_stationarity() {
+        let sample_var = 0.0004;
+
+        // Normal GARCH initial simplex
+        let init_param = vec![sample_var * 0.05, 0.05, 0.85];
+        let simplex_normal = vec![
+            init_param.clone(),
+            vec![sample_var * 0.1, 0.05, 0.85],
+            vec![sample_var * 0.05, 0.1, 0.85],
+            vec![sample_var * 0.05, 0.05, 0.90],
+        ];
+
+        for (idx, vertex) in simplex_normal.iter().enumerate() {
+            let omega = vertex[0];
+            let alpha = vertex[1];
+            let beta = vertex[2];
+            assert!(omega > 0.0, "Vertex {idx}: omega must be > 0");
+            assert!(alpha > 0.0, "Vertex {idx}: alpha must be > 0");
+            assert!(beta > 0.0, "Vertex {idx}: beta must be > 0");
+            assert!(
+                alpha + beta < 1.0,
+                "Vertex {idx}: alpha + beta must be < 1.0 for stationarity, got {}",
+                alpha + beta
+            );
+        }
+
+        // Student-t GARCH initial simplex
+        let init_param_t = vec![sample_var * 0.05, 0.05, 0.85, 5.0];
+        let simplex_t = vec![
+            init_param_t.clone(),
+            vec![sample_var * 0.1, 0.05, 0.85, 5.0],
+            vec![sample_var * 0.05, 0.1, 0.85, 5.0],
+            vec![sample_var * 0.05, 0.05, 0.90, 5.0],
+            vec![sample_var * 0.05, 0.05, 0.85, 8.0],
+        ];
+
+        for (idx, vertex) in simplex_t.iter().enumerate() {
+            let omega = vertex[0];
+            let alpha = vertex[1];
+            let beta = vertex[2];
+            let nu = vertex[3];
+            assert!(omega > 0.0, "Vertex {idx}: omega must be > 0");
+            assert!(alpha > 0.0, "Vertex {idx}: alpha must be > 0");
+            assert!(beta > 0.0, "Vertex {idx}: beta must be > 0");
+            assert!(
+                alpha + beta < 1.0,
+                "Vertex {idx}: alpha + beta must be < 1.0 for stationarity, got {}",
+                alpha + beta
+            );
+            assert!(nu > 2.0, "Vertex {idx}: nu must be > 2.0, got {}", nu);
+        }
     }
 }

@@ -26,11 +26,7 @@ use pgrx::prelude::*;
 ///     cov_matrix => ARRAY[0.04, 0.01, 0.01, 0.09]
 /// );
 /// ```
-#[pg_extern]
-pub fn pgquant_risk_decomposition(
-    weights: Vec<f64>,
-    cov_matrix: Vec<f64>,
-) -> Result<
+type RiskDecompositionResult = Result<
     TableIterator<
         'static,
         (
@@ -43,7 +39,13 @@ pub fn pgquant_risk_decomposition(
         ),
     >,
     pgrx::spi::Error,
-> {
+>;
+
+#[pg_extern]
+pub fn pgquant_risk_decomposition(
+    weights: Vec<f64>,
+    cov_matrix: Vec<f64>,
+) -> RiskDecompositionResult {
     let n = weights.len();
 
     if n == 0 {
@@ -113,7 +115,7 @@ pub fn pgquant_risk_decomposition(
     Ok(TableIterator::new(rows))
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

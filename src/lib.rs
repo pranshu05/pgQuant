@@ -24,7 +24,7 @@ fn pgquant_version() -> &'static str {
     concat!("pgquant ", env!("CARGO_PKG_VERSION"))
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use pgrx::prelude::*;
@@ -46,7 +46,7 @@ mod tests {
 
 /// This module is required by `cargo pgrx test` invocations.
 /// It must be visible at the root of your extension crate.
-#[cfg(test)]
+#[cfg(feature = "pg_test")]
 pub mod pg_test {
     pub fn setup(_options: Vec<&str>) {
         // perform one-off initialization when the pg_test framework starts

@@ -1,10 +1,52 @@
 use crate::spi_helpers::fetch_timeseries;
 use pgrx::prelude::*;
 
+/// Standalone mathematical computation for log return of a single period.
+pub fn compute_log_return(p_t: f64, p_t_minus_1: f64) -> Result<f64, &'static str> {
+    if p_t <= 0.0 || p_t.is_nan() || p_t.is_infinite() {
+        return Err("Price p_t must be strictly positive and finite");
+    }
+    if p_t_minus_1 <= 0.0 || p_t_minus_1.is_nan() || p_t_minus_1.is_infinite() {
+        return Err("Previous price p_t_minus_1 must be strictly positive and finite");
+    }
+    Ok((p_t / p_t_minus_1).ln())
+}
+
+/// Standalone mathematical computation for simple return of a single period.
+pub fn compute_simple_return(p_t: f64, p_t_minus_1: f64) -> Result<f64, &'static str> {
+    if p_t <= 0.0 || p_t.is_nan() || p_t.is_infinite() {
+        return Err("Price p_t must be strictly positive and finite");
+    }
+    if p_t_minus_1 <= 0.0 || p_t_minus_1.is_nan() || p_t_minus_1.is_infinite() {
+        return Err("Previous price p_t_minus_1 must be strictly positive and finite");
+    }
+    Ok((p_t - p_t_minus_1) / p_t_minus_1)
+}
+
+/// Standalone mathematical computation for annualizing daily simple return.
+pub fn compute_annualize_simple(daily_return: f64, trading_days: i32) -> f64 {
+    (1.0 + daily_return).powi(trading_days) - 1.0
+}
+
+/// Standalone mathematical computation for annualizing daily log return.
+pub fn compute_annualize_log(daily_return: f64, trading_days: i32) -> f64 {
+    daily_return * (trading_days as f64)
+}
+
+/// Standalone mathematical computation for cumulative simple return.
+pub fn compute_cumulative_simple_return(returns: &[f64]) -> f64 {
+    returns.iter().fold(1.0, |acc, &r| acc * (1.0 + r)) - 1.0
+}
+
+/// Standalone mathematical computation for cumulative log return.
+pub fn compute_cumulative_log_return(returns: &[f64]) -> f64 {
+    returns.iter().sum()
+}
+
 /// Computes the log return of a single period given p_t and p_t_minus_1.
 #[pg_extern]
 pub fn pgquant_log_return(p_t: f64, p_t_minus_1: f64) -> f64 {
-    (p_t / p_t_minus_1).ln()
+    compute_log_return(p_t, p_t_minus_1).unwrap_or_else(|e| pgrx::error!("{}", e))
 }
 
 /// Takes a price series query and computes log returns per symbol over time.
@@ -24,27 +66,22 @@ pub fn pgquant_log_returns(
         pgrx::error!("Failed to fetch timeseries: {}", e);
     });
 
-    let mut results = Vec::new();
-
     if timeseries.is_empty() {
-        return pgrx::iter::TableIterator::new(results);
+        return pgrx::iter::TableIterator::new(Vec::new());
     }
 
-    let mut prev_symbol = &timeseries[0].0;
-    let mut prev_price = timeseries[0].2;
+    let mut results = Vec::with_capacity(timeseries.len());
+    let mut iter = timeseries.into_iter();
+    let mut prev = iter.next().unwrap();
 
-    for row in timeseries.iter().skip(1) {
-        let current_symbol = &row.0;
-        let current_date = row.1;
-        let current_price = row.2;
-
-        if current_symbol == prev_symbol {
-            let log_ret = (current_price / prev_price).ln();
-            results.push((current_symbol.clone(), current_date, log_ret));
+    for current in iter {
+        if current.0 == prev.0 {
+            let log_ret = (current.2 / prev.2).ln();
+            results.push((current.0, current.1, log_ret));
+            prev.2 = current.2;
+        } else {
+            prev = current;
         }
-
-        prev_symbol = current_symbol;
-        prev_price = current_price;
     }
 
     pgrx::iter::TableIterator::new(results)
@@ -53,7 +90,7 @@ pub fn pgquant_log_returns(
 /// Computes the simple return of a single period given p_t and p_t_minus_1.
 #[pg_extern]
 pub fn pgquant_simple_return(p_t: f64, p_t_minus_1: f64) -> f64 {
-    (p_t - p_t_minus_1) / p_t_minus_1
+    compute_simple_return(p_t, p_t_minus_1).unwrap_or_else(|e| pgrx::error!("{}", e))
 }
 
 /// Takes a price series query and computes simple returns per symbol over time.
@@ -73,27 +110,22 @@ pub fn pgquant_simple_returns(
         pgrx::error!("Failed to fetch timeseries: {}", e);
     });
 
-    let mut results = Vec::new();
-
     if timeseries.is_empty() {
-        return pgrx::iter::TableIterator::new(results);
+        return pgrx::iter::TableIterator::new(Vec::new());
     }
 
-    let mut prev_symbol = &timeseries[0].0;
-    let mut prev_price = timeseries[0].2;
+    let mut results = Vec::with_capacity(timeseries.len());
+    let mut iter = timeseries.into_iter();
+    let mut prev = iter.next().unwrap();
 
-    for row in timeseries.iter().skip(1) {
-        let current_symbol = &row.0;
-        let current_date = row.1;
-        let current_price = row.2;
-
-        if current_symbol == prev_symbol {
-            let simple_ret = (current_price - prev_price) / prev_price;
-            results.push((current_symbol.clone(), current_date, simple_ret));
+    for current in iter {
+        if current.0 == prev.0 {
+            let simple_ret = (current.2 - prev.2) / prev.2;
+            results.push((current.0, current.1, simple_ret));
+            prev.2 = current.2;
+        } else {
+            prev = current;
         }
-
-        prev_symbol = current_symbol;
-        prev_price = current_price;
     }
 
     pgrx::iter::TableIterator::new(results)
@@ -102,28 +134,81 @@ pub fn pgquant_simple_returns(
 /// Annualizes a daily simple return given a number of trading days in a year (e.g., 252).
 #[pg_extern]
 pub fn pgquant_annualize_simple(daily_return: f64, trading_days: i32) -> f64 {
-    (1.0 + daily_return).powi(trading_days) - 1.0
+    compute_annualize_simple(daily_return, trading_days)
 }
 
 /// Annualizes a daily log return given a number of trading days in a year (e.g., 252).
 #[pg_extern]
 pub fn pgquant_annualize_log(daily_return: f64, trading_days: i32) -> f64 {
-    daily_return * (trading_days as f64)
+    compute_annualize_log(daily_return, trading_days)
 }
 
 /// Computes the cumulative simple return from an array of simple returns.
 #[pg_extern]
 pub fn pgquant_cumulative_simple_return(returns: Vec<f64>) -> f64 {
-    returns.into_iter().fold(1.0, |acc, r| acc * (1.0 + r)) - 1.0
+    compute_cumulative_simple_return(&returns)
 }
 
 /// Computes the cumulative log return from an array of log returns.
 #[pg_extern]
 pub fn pgquant_cumulative_log_return(returns: Vec<f64>) -> f64 {
-    returns.into_iter().sum()
+    compute_cumulative_log_return(&returns)
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_compute_log_return() {
+        let ret = compute_log_return(105.0, 100.0).unwrap();
+        assert!((ret - 0.048790164169).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_compute_simple_return() {
+        let ret = compute_simple_return(105.0, 100.0).unwrap();
+        assert!((ret - 0.05).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_returns_validation() {
+        assert!(compute_log_return(-1.0, 100.0).is_err());
+        assert!(compute_log_return(100.0, 0.0).is_err());
+        assert!(compute_log_return(f64::NAN, 100.0).is_err());
+        assert!(compute_simple_return(-1.0, 100.0).is_err());
+        assert!(compute_simple_return(100.0, 0.0).is_err());
+    }
+
+    #[test]
+    fn test_annualize_simple() {
+        let ret = compute_annualize_simple(0.001, 252);
+        let expected = (1.001_f64).powi(252) - 1.0;
+        assert!((ret - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_annualize_log() {
+        let ret = compute_annualize_log(0.001, 252);
+        assert!((ret - 0.252).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_cumulative_simple() {
+        let returns = [0.01, -0.02, 0.03];
+        let ret = compute_cumulative_simple_return(&returns);
+        assert!((ret - 0.019494).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_cumulative_log() {
+        let returns = [0.01, -0.02, 0.03];
+        let ret = compute_cumulative_log_return(&returns);
+        assert!((ret - 0.02).abs() < 1e-6);
+    }
+}
+
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

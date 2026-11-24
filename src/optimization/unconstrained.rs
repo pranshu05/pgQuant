@@ -24,11 +24,20 @@ pub fn pgquant_mv_optimize_unconstrained(
     if n == 0 {
         pgrx::error!("Returns array cannot be empty.");
     }
+    if returns.iter().any(|r| r.is_nan() || r.is_infinite()) {
+        pgrx::error!("Returns array cannot contain NaN or infinite values.");
+    }
     if cov_matrix.len() != n * n {
         pgrx::error!("Covariance matrix length must be N^2 where N is the length of returns.");
     }
-    if risk_aversion <= 0.0 {
-        pgrx::error!("Risk aversion must be > 0.");
+    if cov_matrix.iter().any(|c| c.is_nan() || c.is_infinite()) {
+        pgrx::error!("Covariance matrix cannot contain NaN or infinite values.");
+    }
+    if risk_free_rate.is_nan() || risk_free_rate.is_infinite() {
+        pgrx::error!("Risk-free rate cannot be NaN or infinite.");
+    }
+    if risk_aversion <= 0.0 || risk_aversion.is_nan() || risk_aversion.is_infinite() {
+        pgrx::error!("Risk aversion must be > 0 and finite.");
     }
 
     let mu = DVector::from_vec(returns);
@@ -59,7 +68,7 @@ pub fn pgquant_mv_optimize_unconstrained(
     Ok(w.as_slice().to_vec())
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

@@ -29,11 +29,12 @@ pub fn fetch_timeseries(
     })
 }
 
+/// Represents a single row in a factor panel: (symbol, date, return, bucket1, bucket2, weight).
+pub type FactorPanelRow = (String, pgrx::datum::Date, f64, i32, i32, f64);
+
 /// Executes a SQL query that returns columns (symbol text, date date, ret double precision, bucket1 integer, bucket2 integer, weight double precision).
 /// Returns a vector of tuples.
-pub fn fetch_factor_panel(
-    query: &str,
-) -> Result<Vec<(String, pgrx::datum::Date, f64, i32, i32, f64)>, pgrx::spi::Error> {
+pub fn fetch_factor_panel(query: &str) -> Result<Vec<FactorPanelRow>, pgrx::spi::Error> {
     Spi::connect(|client| {
         let mut results = Vec::new();
         let table = client.select(query, None, None)?;
@@ -61,7 +62,7 @@ pub fn fetch_factor_panel(
     })
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::fetch_timeseries;

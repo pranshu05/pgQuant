@@ -1,19 +1,19 @@
+use crate::spi_helpers::FactorPanelRow;
 use pgrx::prelude::*;
 use std::collections::BTreeMap;
+
+type DateFactorMap<'a> = BTreeMap<pgrx::datum::Date, Vec<&'a FactorPanelRow>>;
 
 /// Internal helper to calculate 6-portfolio returns (2x3 sort) for a given date
 /// Expects data: (symbol, date, return, size_bucket (1..2), value_bucket (1..3), weight)
 fn calculate_daily_factor_returns(
-    data: &[(String, pgrx::datum::Date, f64, i32, i32, f64)],
+    data: &[FactorPanelRow],
 ) -> BTreeMap<pgrx::datum::Date, (f64, f64)> {
     // Returns (SMB, HML)
     // Group by date
-    let mut by_date: BTreeMap<
-        pgrx::datum::Date,
-        Vec<&(String, pgrx::datum::Date, f64, i32, i32, f64)>,
-    > = BTreeMap::new();
+    let mut by_date: DateFactorMap = BTreeMap::new();
     for row in data {
-        by_date.entry(row.1.clone()).or_default().push(row);
+        by_date.entry(row.1).or_default().push(row);
     }
 
     let mut factors = BTreeMap::new();
@@ -130,12 +130,9 @@ pub fn pgquant_construct_smb(
     let data = crate::spi_helpers::fetch_factor_panel(query)?;
     let factors = calculate_daily_factor_returns(&data);
 
-    let mut results = Vec::new();
-    for (date, (smb, _)) in factors {
-        results.push((date, smb));
-    }
-
-    Ok(TableIterator::new(results))
+    Ok(TableIterator::new(
+        factors.into_iter().map(|(date, (smb, _))| (date, smb)),
+    ))
 }
 
 /// Constructs the Fama-French HML factor return from a double-sort panel.
@@ -150,12 +147,9 @@ pub fn pgquant_construct_hml(
     let data = crate::spi_helpers::fetch_factor_panel(query)?;
     let factors = calculate_daily_factor_returns(&data);
 
-    let mut results = Vec::new();
-    for (date, (_, hml)) in factors {
-        results.push((date, hml));
-    }
-
-    Ok(TableIterator::new(results))
+    Ok(TableIterator::new(
+        factors.into_iter().map(|(date, (_, hml))| (date, hml)),
+    ))
 }
 
 /// Constructs both Fama-French SMB and HML factor returns in a single pass.
@@ -177,12 +171,11 @@ pub fn pgquant_construct_ff_factors(
     let data = crate::spi_helpers::fetch_factor_panel(query)?;
     let factors = calculate_daily_factor_returns(&data);
 
-    let mut results = Vec::new();
-    for (date, (smb, hml)) in factors {
-        results.push((date, smb, hml));
-    }
-
-    Ok(TableIterator::new(results))
+    Ok(TableIterator::new(
+        factors
+            .into_iter()
+            .map(|(date, (smb, hml))| (date, smb, hml)),
+    ))
 }
 
 /// Constructs the Fama-French WML (Momentum) factor return from a double-sort panel.
@@ -198,15 +191,12 @@ pub fn pgquant_construct_wml(
     let data = crate::spi_helpers::fetch_factor_panel(query)?;
     let factors = calculate_daily_factor_returns(&data);
 
-    let mut results = Vec::new();
-    for (date, (_, wml)) in factors {
-        results.push((date, wml));
-    }
-
-    Ok(TableIterator::new(results))
+    Ok(TableIterator::new(
+        factors.into_iter().map(|(date, (_, wml))| (date, wml)),
+    ))
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

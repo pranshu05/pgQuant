@@ -19,6 +19,8 @@ where
     type Output = f64;
 
     fn cost(&self, p: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
+        #[cfg(not(test))]
+        pgrx::check_for_interrupts!();
         let mut state = match (self.init_state)(*p) {
             Some(s) => s,
             None => return Ok(f64::INFINITY),
@@ -58,8 +60,16 @@ where
         .configure(|state| state.max_iters(max_iters))
         .run()?;
 
-    let best_param = res.state().get_best_param().unwrap();
+    let best_param = res.state().get_best_param().ok_or_else(|| {
+        argmin::core::Error::msg("Brent optimization failed: no best parameter found")
+    })?;
     let best_cost = res.state().get_best_cost();
+
+    if best_cost.is_infinite() {
+        return Err(argmin::core::Error::msg(
+            "Optimization failed to converge to a finite cost",
+        ));
+    }
 
     Ok((*best_param, -best_cost))
 }
@@ -81,6 +91,8 @@ where
     type Output = f64;
 
     fn cost(&self, p: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
+        #[cfg(not(test))]
+        pgrx::check_for_interrupts!();
         let mut state = match (self.init_state)(p) {
             Some(s) => s,
             None => return Ok(f64::INFINITY),
@@ -120,8 +132,20 @@ where
         .configure(|state| state.max_iters(max_iters))
         .run()?;
 
-    let best_param = res.state().get_best_param().unwrap().clone();
+    let best_param = res
+        .state()
+        .get_best_param()
+        .ok_or_else(|| {
+            argmin::core::Error::msg("Nelder-Mead optimization failed: no best parameter found")
+        })?
+        .clone();
     let best_cost = res.state().get_best_cost();
 
-    Ok((best_param.clone(), -best_cost))
+    if best_cost.is_infinite() {
+        return Err(argmin::core::Error::msg(
+            "Optimization failed to converge to a finite cost",
+        ));
+    }
+
+    Ok((best_param, -best_cost))
 }

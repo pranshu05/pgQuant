@@ -70,8 +70,8 @@ pub fn pgquant_mv_optimize_constrained(
     let mut a_nzval = Vec::new();
 
     let mut a_nnz = 0;
-    for j in 0..n {
-        a_colptr[j] = a_nnz;
+    for (j, colptr) in a_colptr.iter_mut().enumerate().take(n) {
+        *colptr = a_nnz;
 
         // Sum to 1 constraint
         a_rowval.push(0);
@@ -96,8 +96,10 @@ pub fn pgquant_mv_optimize_constrained(
         NonnegativeConeT(n), // For w >= 0
     ];
 
-    let mut settings = DefaultSettings::default();
-    settings.verbose = false;
+    let settings = DefaultSettings {
+        verbose: false,
+        ..Default::default()
+    };
 
     let mut solver = DefaultSolver::new(&p_mat, &q, &a_mat, &b, &cones, settings);
 
@@ -112,7 +114,7 @@ pub fn pgquant_mv_optimize_constrained(
     }
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

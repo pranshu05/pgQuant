@@ -80,7 +80,7 @@ pub fn pgquant_ewma_lambda_mle(returns: Vec<f64>) -> f64 {
 
     result.0
 }
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;

@@ -29,13 +29,14 @@ pub fn pgquant_portfolio_sort(
         return Ok(TableIterator::new(vec![]));
     }
 
+    let data_len = data.len();
     // Group by date: date -> Vec<(symbol, value)>
     let mut grouped_by_date: BTreeMap<pgrx::datum::Date, Vec<(String, f64)>> = BTreeMap::new();
     for (sym, date, val) in data {
         grouped_by_date.entry(date).or_default().push((sym, val));
     }
 
-    let mut results = Vec::new();
+    let mut results = Vec::with_capacity(data_len);
 
     for (date, mut records) in grouped_by_date {
         // Sort by characteristic value ascending
@@ -47,14 +48,14 @@ pub fn pgquant_portfolio_sort(
             let bucket = ((i as f64 * num_buckets as f64) / n).floor() as i32 + 1;
             // Bound check just in case float math is weird
             let final_bucket = bucket.clamp(1, num_buckets);
-            results.push((sym, date.clone(), final_bucket));
+            results.push((sym, date, final_bucket));
         }
     }
 
     Ok(TableIterator::new(results))
 }
 
-#[cfg(any(test, feature = "pg_test"))]
+#[cfg(feature = "pg_test")]
 #[pg_schema]
 mod tests {
     use super::*;
