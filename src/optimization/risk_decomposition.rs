@@ -26,7 +26,12 @@ use pgrx::prelude::*;
 ///     cov_matrix => ARRAY[0.04, 0.01, 0.01, 0.09]
 /// );
 /// ```
-type RiskDecompositionResult = Result<
+#[pg_extern]
+#[allow(clippy::type_complexity)]
+pub fn pgquant_risk_decomposition(
+    weights: Vec<f64>,
+    cov_matrix: Vec<f64>,
+) -> Result<
     TableIterator<
         'static,
         (
@@ -39,13 +44,7 @@ type RiskDecompositionResult = Result<
         ),
     >,
     pgrx::spi::Error,
->;
-
-#[pg_extern]
-pub fn pgquant_risk_decomposition(
-    weights: Vec<f64>,
-    cov_matrix: Vec<f64>,
-) -> RiskDecompositionResult {
+> {
     let n = weights.len();
 
     if n == 0 {

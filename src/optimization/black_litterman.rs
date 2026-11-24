@@ -20,17 +20,7 @@ use pgrx::prelude::*;
 /// # Returns
 /// A composite type containing `(expected_returns, posterior_cov_matrix)`.
 /// We will implement this as returning `(Vec<f64>, Vec<f64>)` directly via pgrx.
-type BlackLittermanResult = Result<
-    TableIterator<
-        'static,
-        (
-            name!(expected_returns, Vec<f64>),
-            name!(posterior_covariance, Vec<f64>),
-        ),
-    >,
-    pgrx::spi::Error,
->;
-
+///
 /// Standalone mathematical computation for Black-Litterman model.
 ///
 /// Implements:
@@ -142,6 +132,7 @@ pub fn compute_black_litterman(
 }
 
 #[pg_extern]
+#[allow(clippy::type_complexity)]
 pub fn pgquant_black_litterman(
     market_weights: Vec<f64>,
     cov_matrix: Vec<f64>,
@@ -150,7 +141,16 @@ pub fn pgquant_black_litterman(
     p_matrix: Vec<f64>,
     q_vector: Vec<f64>,
     omega_matrix: Vec<f64>,
-) -> BlackLittermanResult {
+) -> Result<
+    TableIterator<
+        'static,
+        (
+            name!(expected_returns, Vec<f64>),
+            name!(posterior_covariance, Vec<f64>),
+        ),
+    >,
+    pgrx::spi::Error,
+> {
     let (er, cov_p) = compute_black_litterman(
         &market_weights,
         &cov_matrix,

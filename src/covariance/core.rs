@@ -2,23 +2,6 @@ use nalgebra::DMatrix;
 use pgrx::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 
-type TabularCovResult = Result<
-    TableIterator<
-        'static,
-        (
-            name!(symbol1, String),
-            name!(symbol2, String),
-            name!(covariance, f64),
-        ),
-    >,
-    pgrx::spi::Error,
->;
-
-type CovMatrixResult = Result<
-    TableIterator<'static, (name!(symbols, Vec<String>), name!(cov_matrix, Vec<f64>))>,
-    pgrx::spi::Error,
->;
-
 type CovInternalResult = Result<Option<(Vec<String>, DMatrix<f64>)>, pgrx::spi::Error>;
 
 fn fetch_and_align_returns(query: &str, min_dates: usize) -> CovInternalResult {
@@ -218,7 +201,19 @@ fn flatten_cov_matrix_1d(
 /// The input query must return (symbol TEXT, date DATE, return DOUBLE PRECISION).
 /// Returns a flattened table of (symbol1, symbol2, covariance).
 #[pg_extern]
-pub fn pgquant_sample_cov(query: &str) -> TabularCovResult {
+pub fn pgquant_sample_cov(
+    query: &str,
+) -> Result<
+    TableIterator<
+        'static,
+        (
+            name!(symbol1, String),
+            name!(symbol2, String),
+            name!(covariance, f64),
+        ),
+    >,
+    pgrx::spi::Error,
+> {
     match compute_sample_cov_internal(query)? {
         Some((symbols, cov_matrix)) => {
             Ok(TableIterator::new(flatten_cov_matrix(symbols, cov_matrix)))
@@ -230,7 +225,13 @@ pub fn pgquant_sample_cov(query: &str) -> TabularCovResult {
 /// Computes the sample covariance matrix as compact 1D array output.
 /// Returns (symbols TEXT[], cov_matrix DOUBLE PRECISION[]).
 #[pg_extern]
-pub fn pgquant_sample_cov_matrix(query: &str) -> CovMatrixResult {
+#[allow(clippy::type_complexity)]
+pub fn pgquant_sample_cov_matrix(
+    query: &str,
+) -> Result<
+    TableIterator<'static, (name!(symbols, Vec<String>), name!(cov_matrix, Vec<f64>))>,
+    pgrx::spi::Error,
+> {
     match compute_sample_cov_internal(query)? {
         Some((symbols, cov_matrix)) => {
             let (syms, flat_cov) = flatten_cov_matrix_1d(symbols, cov_matrix);
@@ -244,7 +245,19 @@ pub fn pgquant_sample_cov_matrix(query: &str) -> CovMatrixResult {
 /// The input query must return (symbol TEXT, date DATE, return DOUBLE PRECISION).
 /// Returns a flattened table of (symbol1, symbol2, covariance).
 #[pg_extern]
-pub fn pgquant_shrinkage_cov_lw(query: &str) -> TabularCovResult {
+pub fn pgquant_shrinkage_cov_lw(
+    query: &str,
+) -> Result<
+    TableIterator<
+        'static,
+        (
+            name!(symbol1, String),
+            name!(symbol2, String),
+            name!(covariance, f64),
+        ),
+    >,
+    pgrx::spi::Error,
+> {
     match compute_shrinkage_cov_lw_internal(query)? {
         Some((symbols, cov_matrix)) => {
             Ok(TableIterator::new(flatten_cov_matrix(symbols, cov_matrix)))
@@ -256,7 +269,13 @@ pub fn pgquant_shrinkage_cov_lw(query: &str) -> TabularCovResult {
 /// Computes the Ledoit-Wolf shrinkage covariance matrix as compact 1D array output.
 /// Returns (symbols TEXT[], cov_matrix DOUBLE PRECISION[]).
 #[pg_extern]
-pub fn pgquant_shrinkage_cov_lw_matrix(query: &str) -> CovMatrixResult {
+#[allow(clippy::type_complexity)]
+pub fn pgquant_shrinkage_cov_lw_matrix(
+    query: &str,
+) -> Result<
+    TableIterator<'static, (name!(symbols, Vec<String>), name!(cov_matrix, Vec<f64>))>,
+    pgrx::spi::Error,
+> {
     match compute_shrinkage_cov_lw_internal(query)? {
         Some((symbols, cov_matrix)) => {
             let (syms, flat_cov) = flatten_cov_matrix_1d(symbols, cov_matrix);

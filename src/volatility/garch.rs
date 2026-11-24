@@ -77,7 +77,13 @@ pub fn pgquant_garch11_normal(
     Ok(TableIterator::new(vec![(omega, alpha, beta, loglik)]))
 }
 
-type Garch11TResult = Result<
+/// Estimates GARCH(1,1) parameters (omega, alpha, beta, nu) and the final log-likelihood
+/// using MLE with Student-t innovations.
+#[pg_extern]
+#[allow(clippy::type_complexity)]
+pub fn pgquant_garch11_t(
+    returns: Vec<f64>,
+) -> Result<
     TableIterator<
         'static,
         (
@@ -89,12 +95,7 @@ type Garch11TResult = Result<
         ),
     >,
     pgrx::spi::Error,
->;
-
-/// Estimates GARCH(1,1) parameters (omega, alpha, beta, nu) and the final log-likelihood
-/// using MLE with Student-t innovations.
-#[pg_extern]
-pub fn pgquant_garch11_t(returns: Vec<f64>) -> Garch11TResult {
+> {
     if returns.len() < 10 {
         pgrx::error!("Need at least 10 observations for GARCH(1,1) estimation");
     }
